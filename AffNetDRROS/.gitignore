@@ -1,0 +1,5 @@
+*.caffemodel
+*.pyc
+**/__pycache__
+__pycache__/
+/home/robolab/iiwa_ws/src/ROB10/AffNetDRROS/affordanceAnalyzer/scripts/affordancenet_synthetic/weights.pth

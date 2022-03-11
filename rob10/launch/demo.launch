@@ -11,7 +11,7 @@
   <node name="tf2_service" pkg="rob9" type="tf2_service.py" required="true"/>
   <node name="moveit_service" pkg="rob9" type="moveit_service.py" required="true"/>
 
-  <node name="trajectory_service" pkg="moveit_scripts" type="trajectory_server_ik.py" required="true"/>
+  <node name="trajectory_service" pkg="moveit_scripts" type="trajectory_server_ik_iiwa.py" required="true"/>
   <node name="frame_publisher" pkg="moveit_scripts" type="frame_publisher.py"/>
 
   <node name="grasp_aff_association_module" pkg="grasp_aff_association" type="main.py" required="true"/>
