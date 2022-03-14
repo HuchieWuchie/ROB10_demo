@@ -49,3 +49,9 @@ qtcreator-*
 
 # Catkin custom files
 CATKIN_IGNORE
+
+*.caffemodel
+*.pyc
+**/__pycache__
+__pycache__/
+affordanceAnalyzer/scripts/affordancenet_synthetic/weights.pth
