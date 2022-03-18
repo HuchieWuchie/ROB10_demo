@@ -92,14 +92,19 @@ class RealsenseServer{
     }
 
     bool serviceSendDepthImageStatic(realsense_service::depth::Request& req, realsense_service::depth::Response& res){
-      std::cout <<"TODO" << std::endl;
+      auto frame_depth = aligned_frames.get_depth_frame();
+      std::cout<<"width " << frame_depth.get_width() << std::endl;
+      std::cout<<"height " << frame_depth.get_height() << std::endl;
+      // NOT SURE IF CV_16UC1 OR CV_8UC1
+      cv::Mat image(cv::Size(frame_depth.get_width(), frame_depth.get_height()), CV_8UC1, (void*)frame_depth.get_data(), cv::Mat::AUTO_STEP);
+      cv::imwrite("my_img.png", image);
+      sensor_msgs::ImagePtr img_msg = cv_bridge::CvImage(std_msgs::Header(), "mono8", image).toImageMsg();
+      res.img = *img_msg;
       return true;
     }
 
     bool serviceSendRGBImageStatic(realsense_service::rgb::Request& req, realsense_service::rgb::Response& res){
       auto frame_color = aligned_frames.get_color_frame();
-      int width = frame_color.get_width();
-      int height = frame_color.get_height();
       cv::Mat image(cv::Size(frame_color.get_width(), frame_color.get_height()), CV_8UC3, (void*)frame_color.get_data(), cv::Mat::AUTO_STEP);
       //cv::imwrite("my_img.png", image);
       sensor_msgs::ImagePtr img_msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", image).toImageMsg();
@@ -120,6 +125,7 @@ class RealsenseServer{
     //Initialize realsense variables and function
     rs2::config cfg;
     rs2::pipeline pipe;
+    rs2::frameset frames;
     rs2::frameset aligned_frames;
     rs2::pointcloud pc;
 
@@ -190,7 +196,7 @@ void RealsenseServer::initializeRealsense(){
 void RealsenseServer::update(bool capture){
   //std::cout << "update" << std::endl;
   if (capture == true){
-    rs2::frameset frames;
+    //rs2::frameset frames;
     if (startup == true){
       //Drop startup frames
       for(int i = 0; i < 50; i++){
@@ -213,6 +219,7 @@ void RealsenseServer::update(bool capture){
 
       rs2::hole_filling_filter hole_filter(2);
       rs2::decimation_filter dec_filter;
+
       rs2::depth_frame filteredDepthFrame = hole_filter.process(dec_filter.process(aligned_frames.get_depth_frame()));
       float dist_to_center = filteredDepthFrame.get_distance(filteredDepthFrame.get_width()/2, filteredDepthFrame.get_height()/2);
       std::cout << "The camera is facing an object " << dist_to_center << " meters away" << std::endl;

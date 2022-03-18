@@ -24,13 +24,11 @@ if __name__ == "__main__":
     cv2.imshow("rgb image", cam.rgb)
     cv2.waitKey(0)
 
-    exit(2)
-
     cam.getDepth()
     cv2.imshow("depth image", (cam.depth*255).astype(np.uint8))
     cv2.waitKey(0)
 
-
+    exit(2)
 
     cam.getUvStatic()
     print(cam.uv.shape)
