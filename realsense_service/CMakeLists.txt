@@ -14,7 +14,12 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   message_generation
   genmsg
+  image_transport
+  cv_bridge
 )
+
+find_package(OpenCV)
+include_directories(${OpenCV_INCLUDE_DIRS})
 
 ## REALSENSE STUFF
 find_package(realsense2 REQUIRED)
@@ -161,7 +166,7 @@ add_executable(${PROJECT_NAME}_node src/hello_realsense2.cpp)
 add_dependencies(${PROJECT_NAME}_node ${PROJECT_NAME}_gencpp)
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(${PROJECT_NAME}_node ${catkin_LIBRARIES} ${realsense2_LIBRARY})
+target_link_libraries(${PROJECT_NAME}_node ${catkin_LIBRARIES} ${realsense2_LIBRARY} ${OpenCV_LIBRARIES})
 
 
 #############
