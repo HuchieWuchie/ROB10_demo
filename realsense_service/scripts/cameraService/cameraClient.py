@@ -59,6 +59,7 @@ class CameraClient(object):
         msg.data = True
         response = depthService(msg)
         img = np.frombuffer(response.img.data, dtype=np.float16).reshape(response.img.height, response.img.width, -1)
+        #img = np.frombuffer(response.img.data, dtype=np.uint8).reshape(response.img.height, response.img.width, -1)
         self.depth = img
         return self.depth
 

@@ -82,7 +82,7 @@ class RealsenseServer{
 
     bool updateStatic(realsense_service::capture::Request& req, realsense_service::capture::Response& res){
       if (req.capture.data){
-        update(req.capture.data);
+        update();
         res.success.data = true;
       } else {
         std::cout<<"Client contacted the server but did not asked to capture new statics"<<std::endl;
@@ -92,11 +92,13 @@ class RealsenseServer{
     }
 
     bool serviceSendDepthImageStatic(realsense_service::depth::Request& req, realsense_service::depth::Response& res){
-      auto frame_depth = aligned_frames.get_depth_frame();
-      std::cout<<"width " << frame_depth.get_width() << std::endl;
-      std::cout<<"height " << frame_depth.get_height() << std::endl;
-      // NOT SURE IF CV_16UC1 OR CV_8UC1
+      //auto frame_depth = aligned_frames.get_depth_frame();
+      //std::cout<<"width " << frame_depth.get_width() << std::endl;
+      //std::cout<<"height " << frame_depth.get_height() << std::endl;
+      // NOT SURE IF CV_16UC1 OR CV_8UC1, MORE OPTIONS https://stackoverflow.com/questions/13428689/whats-the-difference-between-cvtype-values-in-opencv
+      rs2::depth_frame frame_depth(processed_frame);
       cv::Mat image(cv::Size(frame_depth.get_width(), frame_depth.get_height()), CV_8UC1, (void*)frame_depth.get_data(), cv::Mat::AUTO_STEP);
+      //cv::Mat image(cv::Size(frame_depth.get_width(), frame_depth.get_height()), CV_32F, (void*)frame_depth.get_data(), cv::Mat::AUTO_STEP);
       cv::imwrite("my_img.png", image);
       sensor_msgs::ImagePtr img_msg = cv_bridge::CvImage(std_msgs::Header(), "mono8", image).toImageMsg();
       res.img = *img_msg;
@@ -104,7 +106,8 @@ class RealsenseServer{
     }
 
     bool serviceSendRGBImageStatic(realsense_service::rgb::Request& req, realsense_service::rgb::Response& res){
-      auto frame_color = aligned_frames.get_color_frame();
+      //auto frame_color = aligned_frames.get_color_frame();
+      rs2::video_frame frame_color(processed_frame);
       cv::Mat image(cv::Size(frame_color.get_width(), frame_color.get_height()), CV_8UC3, (void*)frame_color.get_data(), cv::Mat::AUTO_STEP);
       //cv::imwrite("my_img.png", image);
       sensor_msgs::ImagePtr img_msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", image).toImageMsg();
@@ -125,20 +128,24 @@ class RealsenseServer{
     //Initialize realsense variables and function
     rs2::config cfg;
     rs2::pipeline pipe;
-    rs2::frameset frames;
-    rs2::frameset aligned_frames;
+    /*REMOVE WHEN DONE*/ rs2::frameset frames;
+    /*REMOVE WHEN DONE*/ rs2::frameset aligned_frames;
     rs2::pointcloud pc;
+    /*REMOVE WHEN DONE*/ rs2::points points;
+    const rs2::texture_coordinate* uv;
+    rs2::frame processed_frame;
 
     RealsenseServer();
     void initializeRealsense();
-    void update(bool capture);
+    void update();
+    void generatePointcloud();
 };
 
 //CONSTRUCTOR, CHANGE VALUES HERE
 RealsenseServer::RealsenseServer() {
     cam_width = 1280;
     cam_height = 720;
-    tempFilterSize = 10;
+    //tempFilterSize = 10;
     baseService = "/sensors/realsense";
     /*color_frame = 0;
     scolor_image = 0;
@@ -193,10 +200,7 @@ void RealsenseServer::initializeRealsense(){
     //}
 }
 
-void RealsenseServer::update(bool capture){
-  //std::cout << "update" << std::endl;
-  if (capture == true){
-    //rs2::frameset frames;
+void RealsenseServer::update(){
     if (startup == true){
       //Drop startup frames
       for(int i = 0; i < 50; i++){
@@ -219,19 +223,33 @@ void RealsenseServer::update(bool capture){
 
       rs2::hole_filling_filter hole_filter(2);
       rs2::decimation_filter dec_filter;
+      rs2::threshold_filter thr_filter;
+      // filter settings CHANGE AS NEEDED
+      thr_filter.set_option(RS2_OPTION_MIN_DISTANCE, 0.3f);
+      thr_filter.set_option(RS2_OPTION_MAX_DISTANCE, 2.0f);
 
-      rs2::depth_frame filteredDepthFrame = hole_filter.process(dec_filter.process(aligned_frames.get_depth_frame()));
+      processed_frame = hole_filter.process(dec_filter.process(thr_filter.process(aligned_frames.get_depth_frame())));
+      //rs2::depth_frame filteredDepthFrame = hole_filter.process(dec_filter.process(thr_filter.process(aligned_frames.get_depth_frame())));
+      rs2::depth_frame filteredDepthFrame(processed_frame);
       float dist_to_center = filteredDepthFrame.get_distance(filteredDepthFrame.get_width()/2, filteredDepthFrame.get_height()/2);
       std::cout << "The camera is facing an object " << dist_to_center << " meters away" << std::endl;
-      // GET POINTCLOUD
-      //rs2::points points = pc.calculate(aligned_frames.get_depth_frame());
-      pc.calculate(filteredDepthFrame);
-      pc.map_to(aligned_frames.get_color_frame());
-      if (pc) {
-        //std::cout<<"Pointcloud is ready"<<std::endl;
-      }
+        // GET POINTCLOUD
+      RealsenseServer::generatePointcloud();
     }
-  }
+}
+
+void RealsenseServer::generatePointcloud(){
+  //https://github.com/Resays/xyz_rgb_realsense/tree/master
+  rs2::depth_frame depth(processed_frame);
+  rs2::video_frame color(processed_frame);
+  points = pc.calculate(depth);
+  pc.map_to(color);
+  //uv = points.get_texture_coordinates();
+  auto uv_temp = points.get_texture_coordinates();
+  std::cout<<"temp test "<<(float) uv_temp[8999].v<<std::endl;
+
+
+
 }
 
 
@@ -239,18 +257,14 @@ int main(int argc, char **argv)
 {
   ros::init(argc, argv, "realsense_service_cpp_node");
 
-
   RealsenseServer camera;
   camera.initializeRealsense();
-  camera.capture = true;
+  camera.update();
 
   ros::Rate loop_rate(30);
   while(ros::ok()){
-    camera.update(camera.capture);
     ros::Time time_now = ros::Time::now();
     //std::cout<<"Sending: " << time_now <<std::endl;
-    camera.capture = false;
-
     ros::spinOnce();
     loop_rate.sleep();
   }
