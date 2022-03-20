@@ -17,6 +17,10 @@
 //import sensor_msgs.point_cloud2 as pc2
 #include "sensor_msgs/PointField.h"
 
+#include <pcl_ros/point_cloud.h>
+#include <pcl/point_types.h>
+#include <pcl_conversions/pcl_conversions.h>
+
 #include <image_transport/image_transport.h>
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/highgui/highgui.hpp>
@@ -29,8 +33,13 @@
 #include "realsense_service/rgb.h"
 #include "realsense_service/uvSrv.h"
 
+typedef std::tuple<uint8_t, uint8_t, uint8_t> RGB_tuple;
+using pcl_ptr = pcl::PointCloud<pcl::PointXYZ>::Ptr;
+typedef pcl::PointCloud<pcl::PointXYZ> PointCloud;
+
 class RealsenseServer{
   public:
+    //typedef std::tuple<uint8_t, uint8_t, uint8_t> RGB_tuple;
     int cam_width;
     int cam_height;
     int tempFilterSize;
@@ -79,6 +88,7 @@ class RealsenseServer{
     ros::Publisher pubStaticRGB;
     ros::Publisher pubStaticDepth;
     ros::Publisher pubPointCloudGeometryStaticRGB;
+    ros::Publisher temp_pc_pub;
 
     bool updateStatic(realsense_service::capture::Request& req, realsense_service::capture::Response& res){
       if (req.capture.data){
@@ -139,6 +149,10 @@ class RealsenseServer{
     void initializeRealsense();
     void update();
     void generatePointcloud();
+    void publishPointcloud();
+    PointCloud::Ptr points_to_pcl(const rs2::points& points);
+    /*TUPLE COULD BE TURNED INTO AN ARRAY*/ RGB_tuple get_texcolor(rs2::video_frame texture, rs2::texture_coordinate texcoords);
+
 };
 
 //CONSTRUCTOR, CHANGE VALUES HERE
@@ -182,6 +196,8 @@ RealsenseServer::RealsenseServer() {
     pubStaticRGB = n.advertise<sensor_msgs::Image>(baseService + "/rgb/static", 1);
     pubStaticDepth = n.advertise<sensor_msgs::Image>(baseService + "/depth/static", 1);
     pubPointCloudGeometryStaticRGB = n.advertise<std_msgs::Float32MultiArray>(baseService + "/pointcloudGeometry/static/rgb", 1);
+
+    temp_pc_pub = n.advertise<PointCloud> ("points2", 1);
 
     cfg.enable_stream(RS2_STREAM_COLOR, cam_width, cam_height, RS2_FORMAT_BGR8, 30);
     cfg.enable_stream(RS2_STREAM_DEPTH, cam_width, cam_height, RS2_FORMAT_Z16, 30);
@@ -240,15 +256,86 @@ void RealsenseServer::update(){
 
 void RealsenseServer::generatePointcloud(){
   //https://github.com/Resays/xyz_rgb_realsense/tree/master
-  rs2::depth_frame depth(processed_frame);
   rs2::video_frame color(processed_frame);
-  points = pc.calculate(depth);
-  pc.map_to(color);
-  //uv = points.get_texture_coordinates();
-  auto uv_temp = points.get_texture_coordinates();
-  std::cout<<"temp test "<<(float) uv_temp[8999].v<<std::endl;
+  rs2::depth_frame depth(processed_frame);
 
+  if(color){
+      pc.map_to(color);
+  } else {
+    std::cout<<"no color data"<<std::endl;
+    exit(2);
+  }
 
+  if(depth){
+    points = pc.calculate(depth);
+  } else {
+    std::cout<<"no depth data"<<std::endl;
+    exit(3);
+  }
+
+  uv = points.get_texture_coordinates();
+  /*std::cout<<"points size "<<points.size()<<std::endl;
+  std::cout<<"depth height "<<depth.get_height()<<std::endl;
+  std::cout<<"depth width "<<depth.get_width()<<std::endl;
+  for (size_t i = 0; i < points.size(); i++) {
+    std::cout<<i<<" u "<<uv[i].u<<" v "<<uv[i].v<<std::endl;
+  }*/
+  //auto color_data = color.get_data();
+  for (size_t i = 0; i < points.size(); i++) {
+    RGB_tuple current_color = get_texcolor(color, uv[i]);
+    int r = std::get<0>(current_color);
+    int g = std::get<1>(current_color);
+  	int b = std::get<2>(current_color);
+    //std::cout<<"R "<<r<<" G "<<g<<" B "<<b<<std::endl;
+  }
+}
+
+RGB_tuple RealsenseServer::get_texcolor(rs2::video_frame texture, rs2::texture_coordinate texcoords) {
+  //SOURCE - https://github.com/Resays/xyz_rgb_realsense/blob/master/xyz_rgb_realsense.cpp
+	const int w = texture.get_width(), h = texture.get_height();
+	int x = std::min(std::max(int(texcoords.u*w + .5f), 0), w - 1);
+	int y = std::min(std::max(int(texcoords.v*h + .5f), 0), h - 1);
+	int idx = x * texture.get_bytes_per_pixel() + y * texture.get_stride_in_bytes();
+	const auto texture_data = reinterpret_cast<const uint8_t*>(texture.get_data());
+	return std::tuple<uint8_t, uint8_t, uint8_t>( texture_data[idx], texture_data[idx + 1], texture_data[idx + 2] );
+}
+
+PointCloud::Ptr RealsenseServer::points_to_pcl(const rs2::points& points){
+  //SOURCE - https://github.com/IntelRealSense/librealsense/blob/master/wrappers/pcl/pcl/rs-pcl.cpp
+  PointCloud::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
+  /*auto sp = points.get_profile().as<rs2::video_stream_profile>();
+  cloud->width = sp.width();
+  cloud->height = sp.height();
+  cloud->is_dense = false;
+  cloud->points.resize(points.size());*/
+  rs2::depth_frame depth(processed_frame);
+  cloud->width = depth.get_width();
+  cloud->height = depth.get_height();
+  cloud->is_dense = false;
+  cloud->points.resize(points.size());
+  auto ptr = points.get_vertices();
+  for (auto& p : cloud->points)
+  {
+      p.x = ptr->x;
+      p.y = ptr->y;
+      p.z = ptr->z;
+      ptr++;
+  }
+
+  return cloud;
+}
+
+void RealsenseServer::publishPointcloud(){
+  //SOURCE - http://wiki.ros.org/pcl_ros
+  PointCloud::Ptr pcl_points = points_to_pcl(points);
+  PointCloud::Ptr msg (new PointCloud);
+  //map frame for testing
+  msg->header.frame_id = "map";
+  msg->height = msg->width = 1;
+  //msg->points.push_back (pcl::PointXYZ(1.0, 2.0, 3.0));
+  msg->points = pcl_points->points;
+  pcl_conversions::toPCL(ros::Time::now(), msg->header.stamp);
+  temp_pc_pub.publish(msg);
 
 }
 
@@ -264,6 +351,7 @@ int main(int argc, char **argv)
   ros::Rate loop_rate(30);
   while(ros::ok()){
     ros::Time time_now = ros::Time::now();
+    camera.publishPointcloud();
     //std::cout<<"Sending: " << time_now <<std::endl;
     ros::spinOnce();
     loop_rate.sleep();

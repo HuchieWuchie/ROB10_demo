@@ -16,6 +16,8 @@ find_package(catkin REQUIRED COMPONENTS
   genmsg
   image_transport
   cv_bridge
+  pcl_ros
+  pcl_conversions
 )
 
 find_package(OpenCV)
@@ -23,7 +25,7 @@ include_directories(${OpenCV_INCLUDE_DIRS})
 
 ## REALSENSE STUFF
 find_package(realsense2 REQUIRED)
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 
 
