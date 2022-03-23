@@ -40,7 +40,6 @@ class RealsenseServer{
   public:
     int cam_width;
     int cam_height;
-    //int tempFilterSize;
     std::string baseService;
     bool capture;
     std::vector<RGB_tuple> cloudColor;
@@ -105,27 +104,22 @@ class RealsenseServer{
       return true;
     }
 
-    //Initialize realsense variables and function
+    //Declare realsense variables and function
     rs2::config cfg;
     rs2::pipeline pipe;
-    /*REMOVE WHEN DONE*/ rs2::frameset frames;
-    /*REMOVE WHEN DONE*/ rs2::frameset aligned_frames;
-    rs2::pointcloud pc;
-    /*REMOVE WHEN DONE*/ rs2::points points;
-    //const rs2::texture_coordinate* uv;
+    rs2::points points;
     rs2::frame processed_frame;
 
     RealsenseServer();
     void initializeRealsense();
     void update();
     void generateStatics();
+    /*TUPLE COULD BE TURNED INTO AN ARRAY*/ RGB_tuple get_texcolor(rs2::video_frame texture, rs2::texture_coordinate texcoords);
     void publishPointcloud();
     PointCloud::Ptr points_to_pcl(const rs2::points& points);
-    /*TUPLE COULD BE TURNED INTO AN ARRAY*/ RGB_tuple get_texcolor(rs2::video_frame texture, rs2::texture_coordinate texcoords);
-
 };
 
-//CONSTRUCTOR, CHANGE VALUES HERE
+//CONSTRUCTOR
 RealsenseServer::RealsenseServer() {
     cam_width = 1280;
     cam_height = 720;
@@ -143,6 +137,7 @@ RealsenseServer::RealsenseServer() {
     pubStaticDepth = n.advertise<sensor_msgs::Image>(baseService + "/depth/static", 1);
     pubPointCloudGeometryStaticRGB = n.advertise<std_msgs::Float32MultiArray>(baseService + "/pointcloudGeometry/static/rgb", 1);
 
+    //Configure Realsense streams
     cfg.enable_stream(RS2_STREAM_COLOR, cam_width, cam_height, RS2_FORMAT_BGR8, 30);
     cfg.enable_stream(RS2_STREAM_DEPTH, cam_width, cam_height, RS2_FORMAT_Z16, 30);
 }
@@ -160,14 +155,14 @@ void RealsenseServer::initializeRealsense(){
 }
 
 void RealsenseServer::update(){
-    frames = pipe.wait_for_frames();
+    rs2::frameset frames = pipe.wait_for_frames();
     auto frame_depth = frames.get_depth_frame();
     auto frame_color = frames.get_color_frame();
 
     if (frame_depth && frame_color){
       // ALIGN THE STREAMS
       rs2::align align(RS2_STREAM_COLOR);
-      aligned_frames = align.process(frames);
+      rs2::frameset aligned_frames = align.process(frames);
 
       // filtering CHANGE AS NEEDED
       rs2::hole_filling_filter hole_filter(2);
@@ -194,6 +189,7 @@ void RealsenseServer::generateStatics(){
   //https://github.com/Resays/xyz_rgb_realsense/tree/master
   rs2::video_frame color(processed_frame);
   rs2::depth_frame depth(processed_frame);
+  rs2::pointcloud pc;
   pc.map_to(color);
   points = pc.calculate(depth);
 
