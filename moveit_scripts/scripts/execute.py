@@ -14,6 +14,7 @@ import std_msgs.msg
 from std_msgs.msg import Int8, MultiArrayDimension, MultiArrayLayout, Int32MultiArray, Float32MultiArray, Bool, Header
 from sensor_msgs.msg import PointCloud2, PointField
 import sensor_msgs.point_cloud2 as pc2
+from iiwa_msgs.msg import JointPosition
 
 import rob9Utils.transformations as transform
 from rob9Utils.graspGroup import GraspGroup
@@ -85,8 +86,8 @@ def associateGraspAffordance(graspData, objects, masks, cloud, cloud_uv, demo = 
     header.frame_id = "ptu_camera_color_optical_frame"
     cloudMsg = pc2.create_cloud(header, FIELDS_XYZ, cloud)
 
-    rospy.wait_for_service('/grasp_affordance_association/associate')
-    get_grasps_service = rospy.ServiceProxy('/grasp_affordance_association/associate', graspGroupSrv)
+    rospy.wait_for_service('grasp_affordance_association/associate')
+    get_grasps_service = rospy.ServiceProxy('grasp_affordance_association/associate', graspGroupSrv)
     response = get_grasps_service(demoMsg, graspMsg, objectMsg, maskMsg, cloudMsg, uvMsg)
 
     return GraspGroup().fromGraspGroupSrv(response)
@@ -98,6 +99,26 @@ def send_trajectory_to_rviz(plan):
     display_trajectory.trajectory_start = moveit.getCurrentState()
     display_trajectory.trajectory.append(plan)
     display_trajectory_publisher.publish(display_trajectory)
+
+def pub_joint_command(plan):
+    print("pub_joint_command")
+    #print(plan)
+    #print(len(plan.joint_trajectory.points))
+    for joint_positions in plan.joint_trajectory.points:
+        joint_goal = JointPosition()
+        joint_goal.header.frame_id = ""
+        joint_goal.header.stamp = rospy.Time.now()
+        joint_goal.position.a1 = joint_positions.positions[0]
+        joint_goal.position.a2 = joint_positions.positions[1]
+        joint_goal.position.a3 = joint_positions.positions[2]
+        joint_goal.position.a4 = joint_positions.positions[3]
+        joint_goal.position.a5 = joint_positions.positions[4]
+        joint_goal.position.a6 = joint_positions.positions[5]
+        joint_goal.position.a7 = joint_positions.positions[6]
+        print("Done creating message")
+        pub_iiwa.publish(joint_goal)
+
+
 
 
 def callback(msg):
@@ -125,8 +146,8 @@ def callback(msg):
     #grasp_waypoints_path = filterBySphericalCoordinates(grasp_waypoints_path, azimuth = azimuthAngleLimit, polar = polarAngleLimit)
 
     print("Calling the trajectory service")
-    rospy.wait_for_service('get_trajectories')
-    get_trajectories = rospy.ServiceProxy('get_trajectories', GetTrajectories)
+    rospy.wait_for_service('iiwa/get_trajectories')
+    get_trajectories = rospy.ServiceProxy('iiwa/get_trajectories', GetTrajectories)
     resp_trajectories = get_trajectories(grasp_waypoints_path)
     print("I have received a trajectory server response ")
 
@@ -161,16 +182,19 @@ def callback(msg):
 
     for i in range(3):
         send_trajectory_to_rviz(plans[i])
-        moveit.execute(plans[i])
+        #print(type(plans[i]))
+        #pub_joint_command(plans[i]) # outcommented by Albert Wed 23 March 09:06
+        moveit.execute(plans[i]) # incommented by Albert Wed 23 March 09:06
         if i == 1:
-            gripper_pub.publish(close_gripper_msg)
-            rospy.sleep(1)
-        print("I have grasped!")
+            gripper_pub.publish(close_gripper_msg) # incommented by Albert Wed 23 March 09:06
+            rospy.sleep(1) # incommented by Albert Wed 23 March 09:06
+            print("I have grasped!")
+        input("Press Enter when you are ready to move the robot back to the ready pose")
     moveit.moveToNamed("ready")
     moveit.moveToNamed("handover")
-    input("Press Enter when you are ready to move the robot back to the ready pose")
+    #input("Press Enter when you are ready to move the robot back to the ready pose")
 
-    moveit.moveToNamed("ready")
+    #moveit.moveToNamed("ready")
     gripper_pub.publish(open_gripper_msg)
 
 def computeWaypoints(graspObjects, offset = 0.1):
@@ -306,10 +330,11 @@ if __name__ == '__main__':
     rospy.init_node('moveit_subscriber', anonymous=True)
     #rospy.Subscriber('tool_id', Int8, callback)
     rospy.Subscriber('objects_affordances_id', Int32MultiArray, callback )
-    gripper_pub = rospy.Publisher('gripper_controller', Int8, queue_size=10, latch=True)
-    pub_grasp = rospy.Publisher('pose_to_reach', PoseStamped, queue_size=10)
-    pub_waypoint = rospy.Publisher('pose_to_reach_waypoint', PoseStamped, queue_size=10)
-    display_trajectory_publisher = rospy.Publisher('/move_group/display_planned_path',
+    gripper_pub = rospy.Publisher('iiwa/gripper_controller', Int8, queue_size=10, latch=True)
+    pub_grasp = rospy.Publisher('iiwa/pose_to_reach', PoseStamped, queue_size=10)
+    pub_waypoint = rospy.Publisher('iiwa/pose_to_reach_waypoint', PoseStamped, queue_size=10)
+    pub_iiwa = rospy.Publisher('iiwa/command/JointPosition', JointPosition, queue_size=10 )
+    display_trajectory_publisher = rospy.Publisher('iiwa/move_group/display_planned_path',
                                                    moveit_msgs.msg.DisplayTrajectory,
                                                    queue_size=20)
     # DO NOT REMOVE THIS SLEEP, it allows gripper_pub to establish connection to the topic

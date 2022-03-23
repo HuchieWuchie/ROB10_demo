@@ -80,7 +80,7 @@ class RealsenseServer(object):
         self.pubStaticRGB = rospy.Publisher(self.baseService + "/rgb/static", Image, queue_size=1)
         self.pubStaticDepth = rospy.Publisher(self.baseService + "/depth/static", Image, queue_size = 1)
         self.pubPointCloudGeometryStaticRGB = rospy.Publisher(self.baseService + "/pointcloudGeometry/static/rgb", Float32MultiArray, queue_size=1)
-        self.rate = rospy.Rate(30) #change back to 6
+        self.rate = rospy.Rate(5) #change back to 6
         self.frame_no = 0
 
         # Initialize realsense package

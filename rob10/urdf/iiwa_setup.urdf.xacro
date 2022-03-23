@@ -152,7 +152,7 @@
   <joint name="iiwa_gripper_joint" type="fixed">
     <parent link="iiwa_link_ee"/>
     <child link="s_connector_plate"/>
-    <origin xyz="0 0 0" rpy="0 -1.57079 0"/>
+    <origin xyz="0 0 0" rpy="0 -1.57079 1.57079"/>
   </joint>
 
 

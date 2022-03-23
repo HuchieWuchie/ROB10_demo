@@ -202,7 +202,7 @@ def handle_get_grasps(req):
 
     if not rospy.is_shutdown():
 
-        pub = rospy.Publisher("/Daniel", Path, queue_size=1)
+        pub = rospy.Publisher("/rosbag", Path, queue_size=1)
 
         # run through all objects found by affordance net
         graspObjects = GraspGroup(grasps = [])

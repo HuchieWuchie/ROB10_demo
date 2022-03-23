@@ -223,6 +223,7 @@ if __name__ == '__main__':
     move_group.set_max_velocity_scaling_factor(rospy.get_param("/vel_scaling"))
     move_group.set_planning_time(rospy.get_param("/planning_time"))
     move_group.set_num_planning_attempts(rospy.get_param("/planning_attempts"))
+    move_group.set_goal_tolerance(0.001)
 
     rospy.wait_for_service('compute_ik')
     calculate_ik = rospy.ServiceProxy("compute_ik", GetPositionIK)
