@@ -20,6 +20,7 @@ find_package(catkin REQUIRED COMPONENTS
   pcl_conversions
 )
 
+## OPENCV
 find_package(OpenCV)
 include_directories(${OpenCV_INCLUDE_DIRS})
 
@@ -28,6 +29,11 @@ find_package(realsense2 REQUIRED)
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 
+## PCL
+find_package(PCL 1.2 REQUIRED)
+include_directories(${PCL_INCLUDE_DIRS})
+link_directories(${PCL_LIBRARY_DIRS})
+add_definitions(${PCL_DEFINITIONS})
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -168,7 +174,7 @@ add_executable(${PROJECT_NAME}_node src/hello_realsense2.cpp)
 add_dependencies(${PROJECT_NAME}_node ${PROJECT_NAME}_gencpp)
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(${PROJECT_NAME}_node ${catkin_LIBRARIES} ${realsense2_LIBRARY} ${OpenCV_LIBRARIES})
+target_link_libraries(${PROJECT_NAME}_node ${catkin_LIBRARIES} ${realsense2_LIBRARY} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 
 
 #############
