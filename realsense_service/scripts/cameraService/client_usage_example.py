@@ -25,7 +25,9 @@ if __name__ == "__main__":
     cv2.waitKey(0)
 
     # SOMETHING WRONG in cam.getDepth() -> ... dtype=np.float16 ...
-    #cam.getDepth()
+    cam.getDepth()
+    print(cam.depth)
+    print(np.unique(cam.depth))
     #cv2.imshow("depth image", (cam.depth*255).astype(np.uint8))
     #cv2.waitKey(0)
 

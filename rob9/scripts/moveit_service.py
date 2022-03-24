@@ -6,8 +6,22 @@ import moveit_commander
 import moveit_msgs
 
 from rob9.srv import moveitMoveToNamedSrv, moveitMoveToNamedSrvResponse
+from rob9.srv import moveitMoveToPoseSrv, moveitMoveToPoseSrvResponse
 from rob9.srv import moveitExecuteSrv, moveitExecuteSrvResponse
 from rob9.srv import moveitRobotStateSrv, moveitRobotStateSrvResponse
+
+def moveToPose(req):
+
+    print("Moving robot to cartesian pose goal: ", req.pose)
+    move_group.set_pose_target(req.pose)
+    move_group.go(wait=True)
+    move_group.stop()
+    move_group.clear_pose_targets()
+
+    resp = moveitMoveToPoseSrvResponse()
+    resp.success.data = True
+
+    return resp
 
 def moveToNamed(req):
 
@@ -49,6 +63,7 @@ if __name__ == '__main__':
     move_group = moveit_commander.MoveGroupCommander("manipulator")
 
     moveToNameService = rospy.Service(baseServiceName + "move_to_named", moveitMoveToNamedSrv, moveToNamed)
+    moveToNameService = rospy.Service(baseServiceName + "move_to_pose", moveitMoveToPoseSrv, moveToPose)
     executeService = rospy.Service(baseServiceName + "execute", moveitExecuteSrv, execute)
     robotStateService = rospy.Service(baseServiceName + "getRobotState", moveitRobotStateSrv, getCurrentState)
 

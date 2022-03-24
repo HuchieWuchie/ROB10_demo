@@ -41,7 +41,8 @@ class RealsenseServer{
     std::string baseService;
     bool capture;
     std::vector<float> cloudColor;
-    std::vector<int> u, v;
+    std::vector<float> vu;
+    //std::vector<int> u, v;
 
     //Declare ROS variables and functions
     ros::NodeHandle n;
@@ -66,17 +67,11 @@ class RealsenseServer{
     }
 
     bool serviceSendDepthImageStatic(realsense_service::depth::Request& req, realsense_service::depth::Response& res){
-      // THIS DOESNT WORK AT ALL
-      //auto frame_depth = aligned_frames.get_depth_frame();
-      //std::cout<<"width " << frame_depth.get_width() << std::endl;
-      //std::cout<<"height " << frame_depth.get_height() << std::endl;
-      // NOT SURE IF CV_16UC1 OR CV_8UC1, MORE OPTIONS https://stackoverflow.com/questions/13428689/whats-the-difference-between-cvtype-values-in-opencv
-      //rs2::depth_frame frame_depth(processed_frame);
-      //cv::Mat image(cv::Size(frame_depth.get_width(), frame_depth.get_height()), CV_8UC1, (void*)frame_depth.get_data(), cv::Mat::AUTO_STEP);
-      //cv::Mat image(cv::Size(frame_depth.get_width(), frame_depth.get_height()), CV_32F, (void*)frame_depth.get_data(), cv::Mat::AUTO_STEP);
+      rs2::depth_frame frame_depth(processed_depth_frame);
+      cv::Mat image(cv::Size(frame_depth.get_width(), frame_depth.get_height()), CV_16U, (void*)frame_depth.get_data(), cv::Mat::AUTO_STEP);
       //cv::imwrite("my_img.png", image);
-      //sensor_msgs::ImagePtr img_msg = cv_bridge::CvImage(std_msgs::Header(), "mono8", image).toImageMsg();
-      //res.img = *img_msg;
+      sensor_msgs::ImagePtr img_msg = cv_bridge::CvImage(std_msgs::Header(), "mono8", image).toImageMsg();
+      res.img = *img_msg;
       return true;
     }
 
@@ -92,8 +87,8 @@ class RealsenseServer{
     bool serviceGetUVStatic(realsense_service::uvSrv::Request& req, realsense_service::uvSrv::Response& res){
       std_msgs::MultiArrayDimension uvDim1;
       uvDim1.label = "length";
-      uvDim1.size = u.size() * 2;
-      uvDim1.stride = u.size();
+      uvDim1.size = vu.size();
+      uvDim1.stride = vu.size()/2;
 
       std_msgs::MultiArrayDimension uvDim2;
       uvDim2.label = "pair";
@@ -104,12 +99,7 @@ class RealsenseServer{
       uvLayout.dim.push_back(uvDim1);
       uvLayout.dim.push_back(uvDim2);
       res.uv.layout= uvLayout;
-
-      std::vector<float> temp;
-      temp.reserve(v.size() + u.size()); // preallocate memory
-      temp.insert(temp.end(), v.begin(), v.end());
-      temp.insert(temp.end(), u.begin(), u.end() );
-      res.uv.data = temp;
+      res.uv.data = vu;
 
       return true;
     }
@@ -192,8 +182,7 @@ void RealsenseServer::update(){
 
 void RealsenseServer::generateStatics(){
   //CLEAN UP FROM PREVIOUS UPDATE
-  u.clear();
-  v.clear();
+  vu.clear();
   cloudColor.clear();
 
   rs2::video_frame color = aligned_frames.get_color_frame();
@@ -204,11 +193,13 @@ void RealsenseServer::generateStatics(){
 
   const rs2::texture_coordinate* uv = points.get_texture_coordinates();
   cloudColor.reserve(points.size()*3);
+  vu.reserve(points.size()*2);
+  const int w = color.get_width(), h = color.get_height();
   for (size_t i = 0; i < points.size(); i++) {
-    int temp = uv[i].u * depth.get_width();
-    u.push_back(temp);
-    temp = uv[i].v * depth.get_height();
-    v.push_back(temp);
+  	int u = std::min(std::max(int(uv[i].u*w + .5f), 0), w - 1);
+  	int v = std::min(std::max(int(uv[i].v*h + .5f), 0), h - 1);
+    vu.push_back(v);
+    vu.push_back(u);
 
     RGB_tuple current_color = get_texcolor(color, uv[i]);
     cloudColor.push_back(std::get<0>(current_color));

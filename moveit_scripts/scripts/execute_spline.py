@@ -7,6 +7,7 @@ import numpy as np
 import time
 import open3d as o3d
 import cv2
+import actionlib
 
 import geometry_msgs.msg
 from geometry_msgs.msg import Pose, PoseStamped, PoseArray
@@ -14,7 +15,8 @@ import std_msgs.msg
 from std_msgs.msg import Int8, MultiArrayDimension, MultiArrayLayout, Int32MultiArray, Float32MultiArray, Bool, Header
 from sensor_msgs.msg import PointCloud2, PointField, JointState
 import sensor_msgs.point_cloud2 as pc2
-from iiwa_msgs.msg import JointPosition
+from iiwa_msgs.msg import JointPosition, Spline, SplineSegment, MoveAlongSplineAction, MoveToJointPositionAction, MoveToJointPositionGoal, MoveAlongSplineGoal
+from iiwa_msgs.srv import SetPTPJointSpeedLimits, SetEndpointFrame, SetPTPCartesianSpeedLimits
 
 import rob9Utils.transformations as transform
 from rob9Utils.graspGroup import GraspGroup
@@ -30,7 +32,79 @@ from moveit_scripts.msg import *
 from grasp_aff_association.srv import *
 from rob9.srv import graspGroupSrv, graspGroupSrvResponse
 
+from moveit_msgs.srv import *
+from moveit_msgs.msg import PositionIKRequest, RobotState, MoveItErrorCodes
+
 import time
+
+def setEndpointFrame(frame_id = "iiwa_link_ee"):
+	print("Setting endpoint frame to \"", frame_id, "\"...")
+	set_endpoint_frame_client = rospy.ServiceProxy("/iiwa/configuration/setEndpointFrame", SetEndpointFrame)
+	response = set_endpoint_frame_client.call(frame_id)
+
+	if not response.success:
+		print("Service call returned error: ", response.error)
+		return False
+
+	return True
+
+def setPTPJointSpeedLimits():
+    print("Setting PTP joint speed limits...")
+    set_ptp_joint_speed_client = rospy.ServiceProxy("/iiwa/configuration/setPTPJointLimits", SetPTPJointSpeedLimits)
+
+    joint_relative_vel = 0.2
+    joint_relative_acc = 0.5
+    response = set_ptp_joint_speed_client.call(joint_relative_vel, joint_relative_acc)
+
+
+    if not response.success:
+        print("Service call returned error: ", response.error)
+        return False
+
+
+    return True
+
+def setPTPCartesianSpeedLimits():
+    print("Setting PTP Cartesian speed limits...")
+    set_ptp_cartesian_speed_client = rospy.ServiceProxy("/iiwa/configuration/setPTPCartesianLimits", SetPTPCartesianSpeedLimits)
+
+    max_cartesian_vel = 0.5
+    max_cartesian_acc = 0.5
+    max_cartesian_jerk = -1.0 # ignore
+    max_orientation_vel = 0.5
+    max_orientation_acc = 0.5
+    max_orientation_jerk = -1.0 # ignore
+
+    response = set_ptp_cartesian_speed_client(max_cartesian_vel, max_cartesian_acc, max_cartesian_jerk,
+                                                max_orientation_vel, max_orientation_acc, max_orientation_jerk)
+
+    if not response.success:
+        print("Service call returned error: ", response.error);
+        return False
+
+    return True
+
+def getSplineSegment (x, y, z, qx, qy, qz, qw, type = 0):
+    segment = SplineSegment()
+
+    segment.type = type;
+
+    segment.point.poseStamped.header.frame_id = "iiwa_link_0"
+
+    segment.point.poseStamped.pose.position.x = x
+    segment.point.poseStamped.pose.position.y = y
+    segment.point.poseStamped.pose.position.z = z
+
+    segment.point.poseStamped.pose.orientation.x = qx
+    segment.point.poseStamped.pose.orientation.y = qy
+    segment.point.poseStamped.pose.orientation.z = qz
+    segment.point.poseStamped.pose.orientation.w = qw
+
+    segment.point.redundancy.status = -1
+    segment.point.redundancy.turn = -1
+
+    return segment
+
 
 def associateGraspAffordance(graspData, objects, masks, cloud, cloud_uv, demo = False):
 
@@ -102,28 +176,52 @@ def send_trajectory_to_rviz(plan):
     display_trajectory.trajectory.append(plan)
     display_trajectory_publisher.publish(display_trajectory)
 
-def pub_joint_command(plan):
-    print("pub_joint_command")
-    #print(plan)
-    #print(len(plan.joint_trajectory.points))
+def execute_spline_trajectory(plan):
+    print("Executing trajectory with spline motion")
 
-    ts = time.time() * 1000
-    for joint_positions in plan.joint_trajectory.points:
-        joint_goal = JointPosition()
-        joint_goal.header.frame_id = ""
-        joint_goal.header.stamp = rospy.Time.now()
-        joint_goal.position.a1 = joint_positions.positions[0]
-        joint_goal.position.a2 = joint_positions.positions[1]
-        joint_goal.position.a3 = joint_positions.positions[2]
-        joint_goal.position.a4 = joint_positions.positions[3]
-        joint_goal.position.a5 = joint_positions.positions[4]
-        joint_goal.position.a6 = joint_positions.positions[5]
-        joint_goal.position.a7 = joint_positions.positions[6]
-        print("Done creating message")
-        pub_iiwa.publish(joint_goal)
+    # Compute cartesian poses for each point in joint trajectory
 
-    te = time.time() * 1000
-    print("Send joint trajectory in ", te - ts, " ms")
+    rospy.wait_for_service('/iiwa/compute_fk')
+    moveit_fk = rospy.ServiceProxy('/iiwa/compute_fk', GetPositionFK)
+
+    cartesian_poses = []
+
+    end_effector_link = ['iiwa_link_ee']
+    joint_names = []
+    joint_positions = []
+    for joint_position in plan.joint_trajectory.points:
+        for i in range(7):
+          joint_names.append('iiwa_joint_'+str(i + 1)) # joint names, see /iiwa/joint_state
+          print(joint_position)
+          joint_positions.append(joint_position.positions[i])
+        header = Header(0,rospy.Time.now(),"iiwa_link_0") # base of IIWA
+        rs = RobotState()
+        rs.joint_state.name = joint_names
+        rs.joint_state.position = joint_positions
+        fk_result = moveit_fk(header, end_effector_link, rs) # Lookup the pose
+
+        x, y, z = fk_result.pose_stamped[0].pose.position.x, fk_result.pose_stamped[0].pose.position.y, fk_result.pose_stamped[0].pose.position.z
+        qx, qy, qz, qw = fk_result.pose_stamped[0].pose.orientation.x, fk_result.pose_stamped[0].pose.orientation.y, fk_result.pose_stamped[0].pose.orientation.z, fk_result.pose_stamped[0].pose.orientation.w
+
+        cartesian_poses.append([x, y, z, qx, qy, qz, qw])
+
+    # Assemble spline with SPL motions
+
+    spline_motion = MoveAlongSplineGoal()
+
+    for pose in cartesian_poses:
+        x, y, z, qx, qy, qz, qw = pose
+        spline_motion.spline.segments.append(getSplineSegment(x, y, z, qx, qy, qz, qw, type = 0))
+
+    # Send and execute
+    spline_motion_client = actionlib.SimpleActionClient("/iiwa/action/move_along_spline", MoveAlongSplineAction)
+
+    print("Waiting for action servers to start...")
+    spline_motion_client.wait_for_server()
+
+    spline_motion_client.send_goal(spline_motion)
+    spline_motion_client.wait_for_result()
+
 
 def callbackJointState(msg):
     global robot_is_moving
@@ -201,8 +299,9 @@ def callback(msg):
     for i in range(3):
         send_trajectory_to_rviz(plans[i])
         #print(type(plans[i]))
-        pub_joint_command(plans[i]) # outcommented by Albert Wed 23 March 09:06
+        #pub_joint_command(plans[i]) # outcommented by Albert Wed 23 March 09:06
         #moveit.execute(plans[i]) # incommented by Albert Wed 23 March 09:06
+        execute_spline_trajectory(plans[i])
         while robot_is_moving == True:
             print("robot_is_moving: ", robot_is_moving)
             rospy.sleep(0.1)
@@ -355,6 +454,22 @@ if __name__ == '__main__':
 
     print("Init")
     rospy.init_node('moveit_subscriber', anonymous=True)
+
+    set_ee = True
+    if not setEndpointFrame():
+        set_ee = False
+    print("STATUS end point frame was changed: ", set_ee)
+
+    set_PTP_speed_limit = True
+    if not setPTPJointSpeedLimits():
+        set_PTP_speed_limit = False
+    print("STATUS PTP joint speed limits was changed: ", set_PTP_speed_limit)
+
+    set_PTP_cart_speed_limit = True
+    if not setPTPCartesianSpeedLimits():
+        set_PTP_cart_speed_limit = False
+    print("STATUS PTP cartesian speed limits was changed: ", set_PTP_cart_speed_limit)
+
     #rospy.Subscriber('tool_id', Int8, callback)
     rospy.Subscriber('objects_affordances_id', Int32MultiArray, callback )
     rospy.Subscriber('/iiwa/joint_states', JointState, callbackJointState)
@@ -430,6 +545,9 @@ if __name__ == '__main__':
 
     print("Got ", len(graspData), " grasps")
 
+    all_grasp_viz_internal = visualizeGrasps6DOF(pcd, graspData)
+    o3d.visualization.draw_geometries([pcd, *all_grasp_viz_internal])
+
     print("Segmenting affordance maps")
     # Run affordance analyzer
     affClient = AffordanceClient()
@@ -453,6 +571,11 @@ if __name__ == '__main__':
 
     # Associate affordances with grasps
     grasps_affordance = associateGraspAffordance(graspData, labels, masks, cloud, cloud_uv, demo = demo.data)
+
+    print("Found ", len(grasps_affordance), " task oriented grasps")
+
+    task_grasp_viz_internal = visualizeGrasps6DOF(pcd, grasps_affordance)
+    o3d.visualization.draw_geometries([pcd, *task_grasp_viz_internal])
 
     grasps_affordance.sortByScore()
     grasps_affordance.thresholdByScore(0.0)

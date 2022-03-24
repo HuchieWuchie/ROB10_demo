@@ -62,6 +62,7 @@ add_message_files(
    FILES
    graspGroupSrv.srv
    moveitMoveToNamedSrv.srv
+   moveitMoveToPoseSrv.srv
    moveitExecuteSrv.srv
    moveitRobotStateSrv.srv
    runGraspingSrv.srv
