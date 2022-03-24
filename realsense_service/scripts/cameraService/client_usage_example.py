@@ -29,12 +29,9 @@ if __name__ == "__main__":
     #cv2.imshow("depth image", (cam.depth*255).astype(np.uint8))
     #cv2.waitKey(0)
 
-
     cam.getUvStatic()
     print(cam.uv.shape)
-    print(cam.uv[0:10])
-    exit(2)
-
+    print(cam.uv[0:10000])
 
     cloud, rgb = cam.getPointCloudStatic()
     pcd = o3d.geometry.PointCloud()

@@ -38,30 +38,24 @@ typedef pcl::PointCloud<pcl::PointXYZ> PointCloud;
 
 class RealsenseServer{
   public:
-    int cam_width;
-    int cam_height;
     std::string baseService;
     bool capture;
-    std::vector<RGB_tuple> cloudColor;
+    std::vector<float> cloudColor;
     std::vector<int> u, v;
 
-    //Initialize ROS variables and functions
+    //Declare ROS variables and functions
     ros::NodeHandle n;
     ros::ServiceServer serviceCapture;
     ros::ServiceServer serviceCaptureDepth;
     ros::ServiceServer serviceCaptureRGB;
     ros::ServiceServer serviceUVStatic;
     ros::ServiceServer servicePointCloudStatic;
-
     ros::Publisher pubPointCloudGeometryStatic;
-    ros::Publisher pubStaticRGB;
-    ros::Publisher pubStaticDepth;
-    ros::Publisher pubPointCloudGeometryStaticRGB;
+    sensor_msgs::PointCloud2 msg_pc2;
 
+    //Declare services functions
     bool updateStatic(realsense_service::capture::Request& req, realsense_service::capture::Response& res){
       if (req.capture.data){
-        ros::Time time_now = ros::Time::now();
-        std::cout<<"[" << time_now <<"] Updating statics "<<std::endl;
         update();
         res.success.data = true;
       } else {
@@ -72,21 +66,22 @@ class RealsenseServer{
     }
 
     bool serviceSendDepthImageStatic(realsense_service::depth::Request& req, realsense_service::depth::Response& res){
+      // THIS DOESNT WORK AT ALL
       //auto frame_depth = aligned_frames.get_depth_frame();
       //std::cout<<"width " << frame_depth.get_width() << std::endl;
       //std::cout<<"height " << frame_depth.get_height() << std::endl;
       // NOT SURE IF CV_16UC1 OR CV_8UC1, MORE OPTIONS https://stackoverflow.com/questions/13428689/whats-the-difference-between-cvtype-values-in-opencv
-      rs2::depth_frame frame_depth(processed_frame);
-      cv::Mat image(cv::Size(frame_depth.get_width(), frame_depth.get_height()), CV_8UC1, (void*)frame_depth.get_data(), cv::Mat::AUTO_STEP);
+      //rs2::depth_frame frame_depth(processed_frame);
+      //cv::Mat image(cv::Size(frame_depth.get_width(), frame_depth.get_height()), CV_8UC1, (void*)frame_depth.get_data(), cv::Mat::AUTO_STEP);
       //cv::Mat image(cv::Size(frame_depth.get_width(), frame_depth.get_height()), CV_32F, (void*)frame_depth.get_data(), cv::Mat::AUTO_STEP);
-      cv::imwrite("my_img.png", image);
-      sensor_msgs::ImagePtr img_msg = cv_bridge::CvImage(std_msgs::Header(), "mono8", image).toImageMsg();
-      res.img = *img_msg;
+      //cv::imwrite("my_img.png", image);
+      //sensor_msgs::ImagePtr img_msg = cv_bridge::CvImage(std_msgs::Header(), "mono8", image).toImageMsg();
+      //res.img = *img_msg;
       return true;
     }
 
     bool serviceSendRGBImageStatic(realsense_service::rgb::Request& req, realsense_service::rgb::Response& res){
-      rs2::video_frame frame_color(processed_frame);
+      rs2::video_frame frame_color = aligned_frames.get_color_frame();
       cv::Mat image(cv::Size(frame_color.get_width(), frame_color.get_height()), CV_8UC3, (void*)frame_color.get_data(), cv::Mat::AUTO_STEP);
       //cv::imwrite("my_img.png", image);
       sensor_msgs::ImagePtr img_msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", image).toImageMsg();
@@ -95,52 +90,72 @@ class RealsenseServer{
     }
 
     bool serviceGetUVStatic(realsense_service::uvSrv::Request& req, realsense_service::uvSrv::Response& res){
-      std::cout <<"TODO" << std::endl;
+      std_msgs::MultiArrayDimension uvDim1;
+      uvDim1.label = "length";
+      uvDim1.size = u.size() * 2;
+      uvDim1.stride = u.size();
+
+      std_msgs::MultiArrayDimension uvDim2;
+      uvDim2.label = "pair";
+      uvDim2.size = 2;
+      uvDim2.stride = 2;
+
+      std_msgs::MultiArrayLayout uvLayout;
+      uvLayout.dim.push_back(uvDim1);
+      uvLayout.dim.push_back(uvDim2);
+      res.uv.layout= uvLayout;
+
+      std::vector<float> temp;
+      temp.reserve(v.size() + u.size()); // preallocate memory
+      temp.insert(temp.end(), v.begin(), v.end());
+      temp.insert(temp.end(), u.begin(), u.end() );
+      res.uv.data = temp;
+
       return true;
     }
 
     bool serviceGetPointCloud(realsense_service::pointcloud::Request& req, realsense_service::pointcloud::Response& res){
-      std::cout <<"TODO" << std::endl;
+      res.pc = msg_pc2;
+      res.color.data = cloudColor;
       return true;
     }
 
-    //Declare realsense variables and function
+    //Declare realsense variables and functions
+    rs2::frameset aligned_frames;
     rs2::config cfg;
     rs2::pipeline pipe;
-    rs2::points points;
-    rs2::frame processed_frame;
+    rs2::frame processed_depth_frame;
 
-    RealsenseServer();
     void initializeRealsense();
     void update();
     void generateStatics();
-    /*TUPLE COULD BE TURNED INTO AN ARRAY*/ RGB_tuple get_texcolor(rs2::video_frame texture, rs2::texture_coordinate texcoords);
+    RGB_tuple get_texcolor(rs2::video_frame texture, rs2::texture_coordinate texcoords);
     void publishPointcloud();
     PointCloud::Ptr points_to_pcl(const rs2::points& points);
+
+    // Declare constructor
+    RealsenseServer(){
+        int cam_width = 1280;
+        int cam_height = 720;
+        baseService = "/sensors/realsense";
+
+        //Initialize ROS
+        serviceCapture = n.advertiseService(baseService + "/capture", &RealsenseServer::updateStatic, this);
+        serviceCaptureDepth = n.advertiseService(baseService + "/depth", &RealsenseServer::serviceSendDepthImageStatic, this);
+        serviceCaptureRGB = n.advertiseService(baseService + "/rgb", &RealsenseServer::serviceSendRGBImageStatic, this);
+        serviceUVStatic = n.advertiseService(baseService + "/pointcloud/static/uv", &RealsenseServer::serviceGetUVStatic, this);
+        servicePointCloudStatic = n.advertiseService(baseService + "/pointcloud/static", &RealsenseServer::serviceGetPointCloud, this);
+
+        pubPointCloudGeometryStatic = n.advertise<sensor_msgs::PointCloud2>(baseService + "/pointcloudGeometry/static", 1);
+        //pubStaticRGB = n.advertise<sensor_msgs::Image>(baseService + "/rgb/static", 1);
+        //pubStaticDepth = n.advertise<sensor_msgs::Image>(baseService + "/depth/static", 1);
+        //pubPointCloudGeometryStaticRGB = n.advertise<std_msgs::Float32MultiArray>(baseService + "/pointcloudGeometry/static/rgb", 1);
+
+        //Configure Realsense streams
+        cfg.enable_stream(RS2_STREAM_COLOR, cam_width, cam_height, RS2_FORMAT_BGR8, 30);
+        cfg.enable_stream(RS2_STREAM_DEPTH, cam_width, cam_height, RS2_FORMAT_Z16, 30);
+    }
 };
-
-//CONSTRUCTOR
-RealsenseServer::RealsenseServer() {
-    cam_width = 1280;
-    cam_height = 720;
-    baseService = "/sensors/realsense";
-
-    //Initialize ROS
-    serviceCapture = n.advertiseService(baseService + "/capture", &RealsenseServer::updateStatic, this);
-    serviceCaptureDepth = n.advertiseService(baseService + "/depth", &RealsenseServer::serviceSendDepthImageStatic, this);
-    serviceCaptureRGB = n.advertiseService(baseService + "/rgb", &RealsenseServer::serviceSendRGBImageStatic, this);
-    serviceUVStatic = n.advertiseService(baseService + "/pointcloud/static/uv", &RealsenseServer::serviceGetUVStatic, this);
-    servicePointCloudStatic = n.advertiseService(baseService + "/pointcloud/static", &RealsenseServer::serviceGetPointCloud, this);
-
-    pubPointCloudGeometryStatic = n.advertise<sensor_msgs::PointCloud2>(baseService + "/pointcloudGeometry/static", 1);
-    pubStaticRGB = n.advertise<sensor_msgs::Image>(baseService + "/rgb/static", 1);
-    pubStaticDepth = n.advertise<sensor_msgs::Image>(baseService + "/depth/static", 1);
-    pubPointCloudGeometryStaticRGB = n.advertise<std_msgs::Float32MultiArray>(baseService + "/pointcloudGeometry/static/rgb", 1);
-
-    //Configure Realsense streams
-    cfg.enable_stream(RS2_STREAM_COLOR, cam_width, cam_height, RS2_FORMAT_BGR8, 30);
-    cfg.enable_stream(RS2_STREAM_DEPTH, cam_width, cam_height, RS2_FORMAT_Z16, 30);
-}
 
 void RealsenseServer::initializeRealsense(){
     std::cout << "initializing" << std::endl;
@@ -149,67 +164,70 @@ void RealsenseServer::initializeRealsense(){
     for(int i = 0; i < 50; i++){
       pipe.wait_for_frames();
     }
-    //RealsenseServer::update();
     //HIGH ACCURACY PRESET EXPLAINED -https://dev.intelrealsense.com/docs/d400-series-visual-presets
     //DO WE STILL WANT THIS?
 }
 
 void RealsenseServer::update(){
+    ros::Time time_now = ros::Time::now();
+    std::cout<<"[" << time_now <<"] Updating statics "<<std::endl;
     rs2::frameset frames = pipe.wait_for_frames();
-    auto frame_depth = frames.get_depth_frame();
-    auto frame_color = frames.get_color_frame();
-
-    if (frame_depth && frame_color){
+    if (frames){
       // ALIGN THE STREAMS
       rs2::align align(RS2_STREAM_COLOR);
-      rs2::frameset aligned_frames = align.process(frames);
+      aligned_frames = align.process(frames);
 
-      // filtering CHANGE AS NEEDED
+      // FILTERING, CHANGE AS NEEDED
       rs2::hole_filling_filter hole_filter(2);
       rs2::decimation_filter dec_filter;
       rs2::threshold_filter thr_filter;
       thr_filter.set_option(RS2_OPTION_MIN_DISTANCE, 0.3f);
       thr_filter.set_option(RS2_OPTION_MAX_DISTANCE, 1.0f);
-      processed_frame = hole_filter.process(dec_filter.process(thr_filter.process(aligned_frames.get_depth_frame())));
+      processed_depth_frame = hole_filter.process(dec_filter.process(thr_filter.process(aligned_frames.get_depth_frame())));
 
-      //rs2::depth_frame filteredDepthFrame(processed_frame);
-      //float dist_to_center = filteredDepthFrame.get_distance(filteredDepthFrame.get_width()/2, filteredDepthFrame.get_height()/2);
-      //std::cout << "The camera is facing an object " << dist_to_center << " meters away" << std::endl;
-      //GET POINTCLOUD
       RealsenseServer::generateStatics();
     }
+    std::cout << "publishing" << std::endl;
 }
 
 void RealsenseServer::generateStatics(){
-  //Clean previous values
+  //CLEAN UP FROM PREVIOUS UPDATE
   u.clear();
   v.clear();
   cloudColor.clear();
 
-  //https://github.com/Resays/xyz_rgb_realsense/tree/master
-  rs2::video_frame color(processed_frame);
-  rs2::depth_frame depth(processed_frame);
+  rs2::video_frame color = aligned_frames.get_color_frame();
+  rs2::depth_frame depth(processed_depth_frame);
   rs2::pointcloud pc;
   pc.map_to(color);
-  points = pc.calculate(depth);
+  rs2::points points = pc.calculate(depth);
 
-  //uv = points.get_texture_coordinates();
   const rs2::texture_coordinate* uv = points.get_texture_coordinates();
+  cloudColor.reserve(points.size()*3);
   for (size_t i = 0; i < points.size(); i++) {
     int temp = uv[i].u * depth.get_width();
     u.push_back(temp);
     temp = uv[i].v * depth.get_height();
     v.push_back(temp);
+
+    RGB_tuple current_color = get_texcolor(color, uv[i]);
+    cloudColor.push_back(std::get<0>(current_color));
+    cloudColor.push_back(std::get<1>(current_color));
+    cloudColor.push_back(std::get<2>(current_color));
   };
 
-  for (size_t i = 0; i < points.size(); i++) {
-    RGB_tuple current_color = get_texcolor(color, uv[i]);
-    cloudColor.push_back(current_color);
-  }
+  PointCloud::Ptr pcl_pc = points_to_pcl(points);
+  pcl::PCLPointCloud2 pcl_pc2;
+  pcl::toPCLPointCloud2(*pcl_pc, pcl_pc2);
+  pcl_conversions::fromPCL(pcl_pc2, msg_pc2);
+  msg_pc2.header.frame_id = "map";
+  msg_pc2.height = 1;
+  msg_pc2.width = points.size();
 }
 
 RGB_tuple RealsenseServer::get_texcolor(rs2::video_frame texture, rs2::texture_coordinate texcoords) {
-  //SOURCE - https://github.com/Resays/xyz_rgb_realsense/blob/master/xyz_rgb_realsense.cpp
+  //SOURCE - https://github.com/Resays/xyz_rgb_realsense/blob/master/xyz_rgb_realsense.cp
+  //SOURCE 2, line 278 - http://docs.ros.org/en/kinetic/api/librealsense2/html/rs__export_8hpp_source.html
 	const int w = texture.get_width(), h = texture.get_height();
 	int x = std::min(std::max(int(texcoords.u*w + .5f), 0), w - 1);
 	int y = std::min(std::max(int(texcoords.v*h + .5f), 0), h - 1);
@@ -219,28 +237,19 @@ RGB_tuple RealsenseServer::get_texcolor(rs2::video_frame texture, rs2::texture_c
 }
 
 void RealsenseServer::publishPointcloud(){
-  PointCloud::Ptr pcl_pc = points_to_pcl(points);
-  pcl::PCLPointCloud2 pcl_pc2;
-  pcl::toPCLPointCloud2(*pcl_pc, pcl_pc2);
-  sensor_msgs::PointCloud2 msg_pc2;
-  pcl_conversions::fromPCL(pcl_pc2, msg_pc2);
-  msg_pc2.header.frame_id = "map";
-  msg_pc2.height = 1;
-  msg_pc2.width = points.size();
   pubPointCloudGeometryStatic.publish(msg_pc2);
 }
 
 PointCloud::Ptr RealsenseServer::points_to_pcl(const rs2::points& points){
   //SOURCE - https://github.com/IntelRealSense/librealsense/blob/master/wrappers/pcl/pcl/rs-pcl.cpp
   PointCloud::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
-  rs2::depth_frame depth(processed_frame);
+  rs2::depth_frame depth(processed_depth_frame);
   cloud->width = depth.get_width();
   cloud->height = depth.get_height();
   cloud->is_dense = false;
   cloud->points.resize(points.size());
   auto ptr = points.get_vertices();
-  for (auto& p : cloud->points)
-  {
+  for (auto& p : cloud->points) {
       p.x = ptr->x;
       p.y = ptr->y;
       p.z = ptr->z;
@@ -257,7 +266,7 @@ int main(int argc, char **argv)
   camera.initializeRealsense();
   camera.update();
 
-  ros::Rate loop_rate(60);
+  ros::Rate loop_rate(30);
   while(ros::ok()){
     camera.publishPointcloud();
     ros::spinOnce();
