@@ -87,7 +87,7 @@
 
   <xacro:include filename="$(find rob10)/urdf/_d435.urdf.xacro"/>
   <xacro:sensor_d435 parent="camera_ptu_link" prefix="ptu_">
-    <origin xyz="0 0 0" rpy="0 0.0425 0" />
+    <origin xyz="0 0 0" rpy="0 0.04 0" />
   </xacro:sensor_d435>
 
   <link name="connector_box_camera">

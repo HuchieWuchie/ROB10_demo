@@ -20,6 +20,9 @@
 #include <pcl/point_types.h>
 #include <pcl/conversions.h>
 #include <pcl_conversions/pcl_conversions.h>
+//#include <pcl/features/normal_3d.h>
+#include <pcl/kdtree/kdtree_flann.h>
+#include <pcl/surface/mls.h>
 
 #include <image_transport/image_transport.h>
 #include <cv_bridge/cv_bridge.h>
@@ -53,6 +56,8 @@ class RealsenseServer{
     ros::ServiceServer servicePointCloudStatic;
     ros::Publisher pubPointCloudGeometryStatic;
     sensor_msgs::PointCloud2 msg_pc2;
+    sensor_msgs::ImagePtr imgColor_msg;
+    sensor_msgs::ImagePtr imgDepth_msg;
 
     //Declare services functions
     bool updateStatic(realsense_service::capture::Request& req, realsense_service::capture::Response& res){
@@ -69,21 +74,21 @@ class RealsenseServer{
 
     bool serviceSendDepthImageStatic(realsense_service::depth::Request& req, realsense_service::depth::Response& res){
       std::cout<<"DepthImageStatic"<<std::endl;
-      rs2::depth_frame frame_depth(processed_depth_frame);
-      cv::Mat image(cv::Size(frame_depth.get_width(), frame_depth.get_height()), CV_16U, (void*)frame_depth.get_data(), cv::Mat::AUTO_STEP);
+      //rs2::depth_frame frame_depth(processed_depth_frame);
+      //cv::Mat image(cv::Size(frame_depth.get_width(), frame_depth.get_height()), CV_16U, (void*)frame_depth.get_data(), cv::Mat::AUTO_STEP);
       //cv::imwrite("my_img.png", image);
-      sensor_msgs::ImagePtr img_msg = cv_bridge::CvImage(std_msgs::Header(), "mono16", image).toImageMsg();
-      res.img = *img_msg;
+      //sensor_msgs::ImagePtr img_msg = cv_bridge::CvImage(std_msgs::Header(), "mono16", image).toImageMsg();
+      res.img = *imgDepth_msg;
       return true;
     }
 
     bool serviceSendRGBImageStatic(realsense_service::rgb::Request& req, realsense_service::rgb::Response& res){
       std::cout<<"RGBImageStatic"<<std::endl;
-      rs2::video_frame frame_color = aligned_frames.get_color_frame();
-      cv::Mat image(cv::Size(frame_color.get_width(), frame_color.get_height()), CV_8UC3, (void*)frame_color.get_data(), cv::Mat::AUTO_STEP);
+      //rs2::video_frame frame_color = aligned_frames.get_color_frame();
+      //cv::Mat image(cv::Size(frame_color.get_width(), frame_color.get_height()), CV_8UC3, (void*)frame_color.get_data(), cv::Mat::AUTO_STEP);
       //cv::imwrite("my_img.png", image);
-      sensor_msgs::ImagePtr img_msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", image).toImageMsg();
-      res.img = *img_msg;
+      //sensor_msgs::ImagePtr img_msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", image).toImageMsg();
+      res.img = *imgColor_msg;
       return true;
     }
 
@@ -156,9 +161,10 @@ void RealsenseServer::initializeRealsense(){
     std::cout << "resetting a device" << std::endl;
     rs2::context ctx;
     rs2::device dev = ctx.query_devices().front(); // Reset the first device
+    // Reset the first device
     dev.hardware_reset();
-    rs2::device_hub hub(ctx);
-    dev = hub.wait_for_device();
+    //rs2::device_hub hub(ctx);
+    //dev = hub.wait_for_device();
 
     //https://github.com/IntelRealSense/librealsense/issues/5052
 
@@ -199,8 +205,16 @@ void RealsenseServer::generateStatics(){
   vu.clear();
   cloudColor.clear();
 
+  //Turn realsense color and depth frames into sensor_msgs
   rs2::video_frame color = aligned_frames.get_color_frame();
+  cv::Mat color_image(cv::Size(color.get_width(), color.get_height()), CV_8UC3, (void*)color.get_data(), cv::Mat::AUTO_STEP);
+  imgColor_msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", color_image).toImageMsg();
+
   rs2::depth_frame depth(processed_depth_frame);
+  cv::Mat depth_image(cv::Size(depth.get_width(), depth.get_height()), CV_16U, (void*)depth.get_data(), cv::Mat::AUTO_STEP);
+  imgDepth_msg = cv_bridge::CvImage(std_msgs::Header(), "mono16", depth_image).toImageMsg();
+
+  //Generate point cloud message, point cloud colours array, and UV array
   rs2::pointcloud pc;
   pc.map_to(color);
   rs2::points points = pc.calculate(depth);
@@ -222,8 +236,22 @@ void RealsenseServer::generateStatics(){
   };
 
   PointCloud::Ptr pcl_pc = points_to_pcl(points);
+  // SOURCE - http://pointclouds.org/documentation/tutorials/resampling.html#moving-least-squares
+  /*pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>);
+  pcl::PointCloud<pcl::PointNormal> mls_points;
+  pcl::MovingLeastSquares<pcl::PointXYZ, pcl::PointNormal> mls;
+  mls.setComputeNormals (true);
+  // Set parameters
+  mls.setInputCloud (pcl_pc);
+  mls.setPolynomialOrder (2);
+  mls.setSearchMethod (tree);
+  mls.setSearchRadius (0.03);
+  // Reconstruct
+  mls.process (mls_points);*/
+
   pcl::PCLPointCloud2 pcl_pc2;
   pcl::toPCLPointCloud2(*pcl_pc, pcl_pc2);
+  //pcl::toPCLPointCloud2(mls_points, pcl_pc2);
   pcl_conversions::fromPCL(pcl_pc2, msg_pc2);
   msg_pc2.header.frame_id = "ptu_camera_color_optical_frame";
   msg_pc2.height = 1;
