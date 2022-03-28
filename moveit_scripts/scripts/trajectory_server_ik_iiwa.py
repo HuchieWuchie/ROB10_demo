@@ -230,6 +230,7 @@ if __name__ == '__main__':
 
     trajectory_server = rospy.Service('get_trajectories', GetTrajectories, handle_get_trajectories)
 
+    """
     print("Checking if in READY pose")
     #print("Current state " + str(robot.get_current_state()))
     move_group.set_named_target("ready")
@@ -240,6 +241,7 @@ if __name__ == '__main__':
         move_group.stop()
         move_group.clear_pose_targets()
         print("Done")
+    """
     #print("Current state after moving" + str(robot.get_current_state()))
 
     ready_state = robot.get_current_state()

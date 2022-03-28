@@ -6,6 +6,7 @@ import std_msgs.msg
 from std_msgs.msg import String, Bool
 
 from rob9.srv import moveitMoveToNamedSrv, moveitMoveToNamedSrvResponse
+from rob9.srv import moveitPlanToNamedSrv, moveitPlanToNamedSrvResponse
 from rob9.srv import moveitExecuteSrv, moveitExecuteSrvResponse
 from rob9.srv import moveitRobotStateSrv, moveitRobotStateSrvResponse
 
@@ -37,6 +38,17 @@ def execute(plan):
     print(success)
 
     return success
+
+def planToNamed(name):
+
+    rospy.wait_for_service("/rob9/moveit/plan_to_named")
+    service = rospy.ServiceProxy("/rob9/moveit/plan_to_named", moveitPlanToNamedSrv)
+
+    msg = moveitPlanToNamedSrv()
+    msg.data = name
+
+    response = service(msg)
+    return response.plan
 
 def getCurrentState():
 

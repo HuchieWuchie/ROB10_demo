@@ -6,6 +6,7 @@ import moveit_commander
 import moveit_msgs
 
 from rob9.srv import moveitMoveToNamedSrv, moveitMoveToNamedSrvResponse
+from rob9.srv import moveitPlanToNamedSrv, moveitPlanToNamedSrvResponse
 from rob9.srv import moveitMoveToPoseSrv, moveitMoveToPoseSrvResponse
 from rob9.srv import moveitExecuteSrv, moveitExecuteSrvResponse
 from rob9.srv import moveitRobotStateSrv, moveitRobotStateSrvResponse
@@ -22,6 +23,22 @@ def moveToPose(req):
     resp.success.data = True
 
     return resp
+
+def planToNamed(req):
+
+    print("Computing plan to named position: ", req.name.data)
+
+    get_start_state_client = rospy.ServiceProxy(baseServiceName + "getRobotState", moveitRobotStateSrv)
+    response = get_start_state_client.call()
+    move_group.set_start_state(response.state)
+    move_group.set_named_target(req.name.data)
+    plan = move_group.plan()
+
+    resp = moveitPlanToNamedSrvResponse()
+    resp.plan = plan
+
+    return resp
+
 
 def moveToNamed(req):
 
@@ -63,7 +80,8 @@ if __name__ == '__main__':
     move_group = moveit_commander.MoveGroupCommander("manipulator")
 
     moveToNameService = rospy.Service(baseServiceName + "move_to_named", moveitMoveToNamedSrv, moveToNamed)
-    moveToNameService = rospy.Service(baseServiceName + "move_to_pose", moveitMoveToPoseSrv, moveToPose)
+    planToNameService = rospy.Service(baseServiceName + "plan_to_named", moveitPlanToNamedSrv, planToNamed)
+    moveToPoseService = rospy.Service(baseServiceName + "move_to_pose", moveitMoveToPoseSrv, moveToPose)
     executeService = rospy.Service(baseServiceName + "execute", moveitExecuteSrv, execute)
     robotStateService = rospy.Service(baseServiceName + "getRobotState", moveitRobotStateSrv, getCurrentState)
 

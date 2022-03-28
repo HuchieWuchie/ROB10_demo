@@ -104,7 +104,8 @@ def send_trajectory_to_rviz(plan):
 
 def pub_joint_command(plan):
     print("pub_joint_command")
-    global goal_joint_positions = np.zeros(7)
+    global goal_joint_positions
+    global_joint_positions = np.zeros(7)
     for joint_positions in plan.joint_trajectory.points:
         joint_goal = JointPosition()
         joint_goal.header.frame_id = ""
@@ -122,7 +123,8 @@ def pub_joint_command(plan):
         iiwa_wait_until_done(goal_joint_positions)
 
 def iiwa_callback(msg):
-    global current_joint_positions = np.zeros(7)
+    global current_joint_positions
+    current_joint_positions = np.zeros(7)
     current_joint_positions[0] = msg.position.a1
     current_joint_positions[1] = msg.position.a2
     current_joint_positions[2] = msg.position.a3
@@ -144,7 +146,7 @@ def iiwa_wait_until_done(joint_positions):
         delta_joint_positions = np.zeros(7)
         delta_joint_positions = goal_joint_positions - current_joint_positions
         delta_joint_positions = np.absolute(delta_joint_positions)
-        delta_joint_positions[delta_joint_positions < 0.01] = 1
+        delta_joint_positions[delta_joint_positions < 0.05] = 1
         temp = np.sum(delta_joint_positions)
         #print(temp)
         if (temp == 7):
@@ -214,22 +216,22 @@ def callback(msg):
         #print(type(plans[i]))
         pub_joint_command(plans[i]) # outcommented by Albert Wed 23 March 09:06
         #moveit.execute(plans[i]) # incommented by Albert Wed 23 March 09:06
-        while robot_is_moving == True:
-            print("robot_is_moving: ", robot_is_moving)
-            rospy.sleep(0.1)
+        #while robot_is_moving == True:
+            #print("robot_is_moving: ", robot_is_moving)
+            #rospy.sleep(0.1)
         if i == 1:
             gripper_pub.publish(close_gripper_msg) # incommented by Albert Wed 23 March 09:06
             rospy.sleep(1) # incommented by Albert Wed 23 March 09:06
             print("I have grasped!")
         input("Press Enter when you are ready to move the robot back to the ready pose") # outcommented by Albert Wed 23 March 09:06
-    while robot_is_moving == True:
-        rospy.sleep(0.1)
+    #while robot_is_moving == True:
+        #rospy.sleep(0.1)
     moveit.moveToNamed("ready")
-    while robot_is_moving == True:
-        rospy.sleep(0.1)
+    #while robot_is_moving == True:
+        #rospy.sleep(0.1)
     moveit.moveToNamed("handover")
-    while robot_is_moving == True:
-        rospy.sleep(0.1)
+    #while robot_is_moving == True:
+        #rospy.sleep(0.1)
     #input("Press Enter when you are ready to move the robot back to the ready pose")
 
     #moveit.moveToNamed("ready")

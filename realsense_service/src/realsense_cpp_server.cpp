@@ -56,6 +56,7 @@ class RealsenseServer{
 
     //Declare services functions
     bool updateStatic(realsense_service::capture::Request& req, realsense_service::capture::Response& res){
+      std::cout<<"updateStatic"<<std::endl;
       if (req.capture.data){
         update();
         res.success.data = true;
@@ -67,15 +68,17 @@ class RealsenseServer{
     }
 
     bool serviceSendDepthImageStatic(realsense_service::depth::Request& req, realsense_service::depth::Response& res){
+      std::cout<<"DepthImageStatic"<<std::endl;
       rs2::depth_frame frame_depth(processed_depth_frame);
       cv::Mat image(cv::Size(frame_depth.get_width(), frame_depth.get_height()), CV_16U, (void*)frame_depth.get_data(), cv::Mat::AUTO_STEP);
       //cv::imwrite("my_img.png", image);
-      sensor_msgs::ImagePtr img_msg = cv_bridge::CvImage(std_msgs::Header(), "mono8", image).toImageMsg();
+      sensor_msgs::ImagePtr img_msg = cv_bridge::CvImage(std_msgs::Header(), "mono16", image).toImageMsg();
       res.img = *img_msg;
       return true;
     }
 
     bool serviceSendRGBImageStatic(realsense_service::rgb::Request& req, realsense_service::rgb::Response& res){
+      std::cout<<"RGBImageStatic"<<std::endl;
       rs2::video_frame frame_color = aligned_frames.get_color_frame();
       cv::Mat image(cv::Size(frame_color.get_width(), frame_color.get_height()), CV_8UC3, (void*)frame_color.get_data(), cv::Mat::AUTO_STEP);
       //cv::imwrite("my_img.png", image);
@@ -85,6 +88,7 @@ class RealsenseServer{
     }
 
     bool serviceGetUVStatic(realsense_service::uvSrv::Request& req, realsense_service::uvSrv::Response& res){
+      std::cout<<"UVStatic"<<std::endl;
       std_msgs::MultiArrayDimension uvDim1;
       uvDim1.label = "length";
       uvDim1.size = vu.size();
@@ -105,6 +109,7 @@ class RealsenseServer{
     }
 
     bool serviceGetPointCloud(realsense_service::pointcloud::Request& req, realsense_service::pointcloud::Response& res){
+      std::cout<<"Pointcloud"<<std::endl;
       res.pc = msg_pc2;
       res.color.data = cloudColor;
       return true;
@@ -154,6 +159,7 @@ void RealsenseServer::initializeRealsense(){
     dev.hardware_reset();
     rs2::device_hub hub(ctx);
     dev = hub.wait_for_device();
+
     //https://github.com/IntelRealSense/librealsense/issues/5052
 
     std::cout << "initializing" << std::endl;
@@ -219,7 +225,7 @@ void RealsenseServer::generateStatics(){
   pcl::PCLPointCloud2 pcl_pc2;
   pcl::toPCLPointCloud2(*pcl_pc, pcl_pc2);
   pcl_conversions::fromPCL(pcl_pc2, msg_pc2);
-  msg_pc2.header.frame_id = "map";
+  msg_pc2.header.frame_id = "ptu_camera_color_optical_frame";
   msg_pc2.height = 1;
   msg_pc2.width = points.size();
 }

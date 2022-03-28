@@ -52,8 +52,8 @@ def setPTPJointSpeedLimits():
     print("Setting PTP joint speed limits...")
     set_ptp_joint_speed_client = rospy.ServiceProxy("/iiwa/configuration/setPTPJointLimits", SetPTPJointSpeedLimits)
 
-    joint_relative_vel = 0.2
-    joint_relative_acc = 0.5
+    joint_relative_vel = 1.0
+    joint_relative_acc = 1.0
     response = set_ptp_joint_speed_client.call(joint_relative_vel, joint_relative_acc)
 
 
@@ -68,12 +68,12 @@ def setPTPCartesianSpeedLimits():
     print("Setting PTP Cartesian speed limits...")
     set_ptp_cartesian_speed_client = rospy.ServiceProxy("/iiwa/configuration/setPTPCartesianLimits", SetPTPCartesianSpeedLimits)
 
-    max_cartesian_vel = 0.5
-    max_cartesian_acc = 0.5
-    max_cartesian_jerk = -1.0 # ignore
-    max_orientation_vel = 0.5
-    max_orientation_acc = 0.5
-    max_orientation_jerk = -1.0 # ignore
+    max_cartesian_vel = 1.0
+    max_cartesian_acc = 1.0
+    max_cartesian_jerk = 1.0 # ignore if -1.0
+    max_orientation_vel = 1.0
+    max_orientation_acc = 1.0
+    max_orientation_jerk = 1.0 # ignore
 
     response = set_ptp_cartesian_speed_client(max_cartesian_vel, max_cartesian_acc, max_cartesian_jerk,
                                                 max_orientation_vel, max_orientation_acc, max_orientation_jerk)
@@ -298,30 +298,21 @@ def callback(msg):
 
     for i in range(3):
         send_trajectory_to_rviz(plans[i])
-        #print(type(plans[i]))
-        #pub_joint_command(plans[i]) # outcommented by Albert Wed 23 March 09:06
-        #moveit.execute(plans[i]) # incommented by Albert Wed 23 March 09:06
         execute_spline_trajectory(plans[i])
-        while robot_is_moving == True:
-            print("robot_is_moving: ", robot_is_moving)
-            rospy.sleep(0.1)
         if i == 1:
             gripper_pub.publish(close_gripper_msg) # incommented by Albert Wed 23 March 09:06
             rospy.sleep(1) # incommented by Albert Wed 23 March 09:06
             print("I have grasped!")
-        input("Press Enter when you are ready to move the robot back to the ready pose") # outcommented by Albert Wed 23 March 09:06
-    while robot_is_moving == True:
-        rospy.sleep(0.1)
-    moveit.moveToNamed("ready")
-    while robot_is_moving == True:
-        rospy.sleep(0.1)
-    moveit.moveToNamed("handover")
-    while robot_is_moving == True:
-        rospy.sleep(0.1)
+        #input("Press Enter when you are ready to move the robot back to the ready pose") # outcommented by Albert Wed 23 March 09:06
+    execute_spline_trajectory(moveit.planToNamed("ready"))
+    execute_spline_trajectory(moveit.planToNamed("handover"))
+    rospy.sleep(2)
     #input("Press Enter when you are ready to move the robot back to the ready pose")
 
     #moveit.moveToNamed("ready")
     gripper_pub.publish(open_gripper_msg)
+    rospy.sleep(2)
+    execute_spline_trajectory(moveit.planToNamed("ready"))
 
 def computeWaypoints(graspObjects, offset = 0.1):
     """ input:  graspsObjects   -   GraspGroup() of grasps
@@ -503,7 +494,7 @@ if __name__ == '__main__':
     gripper_pub.publish(activate_gripper_msg)
     gripper_pub.publish(open_gripper_msg)
     gripper_pub.publish(pinch_gripper_msg)
-    moveit.moveToNamed("ready")
+    execute_spline_trajectory(moveit.planToNamed("ready"))
 
     print("Services init")
 
