@@ -119,8 +119,10 @@ def pub_joint_command(plan):
         joint_goal.position.a5 = joint_positions.positions[4]
         joint_goal.position.a6 = joint_positions.positions[5]
         joint_goal.position.a7 = joint_positions.positions[6]
-        print("Done creating message")
+        #print("Done creating message")
         pub_iiwa.publish(joint_goal)
+        goal_joint_positions = joint_positions
+        iiwa_wait_until_done(goal_joint_positions)
 
     te = time.time() * 1000
     print("Send joint trajectory in ", te - ts, " ms")
@@ -361,7 +363,9 @@ if __name__ == '__main__':
     gripper_pub = rospy.Publisher('iiwa/gripper_controller', Int8, queue_size=10, latch=True)
     pub_grasp = rospy.Publisher('iiwa/pose_to_reach', PoseStamped, queue_size=10)
     pub_waypoint = rospy.Publisher('iiwa/pose_to_reach_waypoint', PoseStamped, queue_size=10)
+
     pub_iiwa = rospy.Publisher('iiwa/command/JointPosition', JointPosition, queue_size=10 )
+    rospy.Subscriber('iiwa/state/JointPosition', JointPosition, iiwa_callback)
     display_trajectory_publisher = rospy.Publisher('iiwa/move_group/display_planned_path',
                                                    moveit_msgs.msg.DisplayTrajectory,
                                                    queue_size=20)
