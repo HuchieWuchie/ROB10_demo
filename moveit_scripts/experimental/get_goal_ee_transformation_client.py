@@ -11,13 +11,21 @@ def get_random_transformation():
     transform.translation.y = np.random.uniform(low=0.5, high=1.5)
     transform.translation.z = np.random.uniform(low=0.5, high=1.5)
 
-    roll = np.random.uniform(low=0.0, high=3.1416)
-    pitch = np.random.uniform(low=0.0, high=3.1416)
-    yaw = np.random.uniform(low=0.0, high=3.1416)
-    q = quaternion_from_euler(roll, pitch, yaw)
-    # normalize quaternion MAYBE UNNECESSARY STEP
+    #roll = np.random.uniform(low=0.0, high=3.1416)
+    #pitch = np.random.uniform(low=0.0, high=3.1416)
+    #yaw = np.random.uniform(low=0.0, high=3.1416)
+    #q = quaternion_from_euler(roll, pitch, yaw)
+
+    q = np.zeros(4)
+    q[0] = np.random.uniform(low=0.0, high=1.0) #q_x
+    q[1] = np.random.uniform(low=0.0, high=1.0) #q_y
+    q[2] = np.random.uniform(low=0.0, high=1.0) #q_z
+    q[3] = np.random.uniform(low=0.0, high=1.0) #q_w
+
+    # normalize quaternion MAY BE UNNECESSARY IF YOU USE quaternion_from_euler()
     q_mag = np.linalg.norm(q)
     q = q/q_mag
+
     # turn numpy array q to geometry_msgs
     transform.rotation.x = q[0]
     transform.rotation.y = q[1]
