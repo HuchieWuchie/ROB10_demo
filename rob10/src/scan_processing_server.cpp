@@ -16,69 +16,44 @@
 #include "tf2_ros/static_transform_broadcaster.h"
 #include "tf2/LinearMath/Quaternion.h"
 #include "sensor_msgs/LaserScan.h"
-#include "geometry_msgs/Point.h"
+#include "geometry_msgs/PointStamped.h"
 
-#include "rob10/requestHumanPose.h"
+#include "rob10/requestReceiverPose.h"
 
 class ScannerServer{
   public:
     ScannerServer(){
       sub_scan = n.subscribe("scan", 1, &ScannerServer::scanCallback, this);
-      pub_processed_scan =  n.advertise<sensor_msgs::LaserScan>("processed_scan", 1);
-      serverRequestHumanPose = n.advertiseService("RequestHumanPose", &ScannerServer::getHumanPose, this);
+      //pub_processed_scan =  n.advertise<sensor_msgs::LaserScan>("processed_scan", 1);
+      pub_receiver_point = n.advertise<geometry_msgs::PointStamped>("receiver", 1);
+      serverRequestReceiverPose = n.advertiseService("requestReceiverPose", &ScannerServer::getReceiverPose, this);
+    }
+    bool receiver_detected;
+
+    void publishReceiverPose(){
+      receiver.header.stamp = ros::Time::now();
+      receiver.header.frame_id = "world";
+      pub_receiver_point.publish(receiver);
     }
 
   private:
     ros::NodeHandle n;
-    ros::ServiceServer serverRequestHumanPose;
+    ros::ServiceServer serverRequestReceiverPose;
     ros::Subscriber sub_scan;
-    ros::Publisher pub_processed_scan;
+    //ros::Publisher pub_processed_scan;
+    ros::Publisher pub_receiver_point;
     tf2_ros::StaticTransformBroadcaster tf_broadcaster;
     std::vector<float> scan;
-    sensor_msgs::LaserScan processed_scan;
+    float angle_increment;
+    float angle_min;
+    geometry_msgs::PointStamped receiver;
+    //sensor_msgs::LaserScan processed_scan;
 
     void scanCallback(const sensor_msgs::LaserScan::ConstPtr& msg){
+      std::cout<<"callback"<<std::endl;
       scan = msg->ranges;
-      std::vector<float> filtered_scan;
-      std::vector<float> range;
-      std::vector<float> angle_index;
-      for (size_t i = 0; i < scan.size(); i++) {
-        if ( scan[i]<0.5 || scan[i]>1.0 || std::isnan(scan[i]) ) {
-          filtered_scan.push_back(0);
-        } else {
-          filtered_scan.push_back(scan[i]);
-          range.push_back(scan[i]);
-          angle_index.push_back(i);
-        }
-      }
-      std::cout<<range.size()<<std::endl;
-      if (range.size() == 0){
-          std::cout<<"No data to process, quitting. TODO error handling"<<std::endl;
-          std::exit(5);
-      }
-      float median_range = calculate_median(range);
-      float median_angle = calculate_median(angle_index);
-      std::cout<<"Median_range "<<median_range<<std::endl;
-      std::cout<<"Median_angle "<<median_angle<<std::endl;
-      float angle = msg->angle_min + (median_angle*msg->angle_increment);
-      std::cout<<"angle "<<angle<<std::endl;
-      geometry_msgs::Point receiver;
-      // POLAR TO CARTESIAN + TRANSFORM TO WORLD FRAME
-      //receiver.x = median_range * cos(angle);
-      //receiver.y = median_range * sin(angle);
-      //receiver.z = 1.3f;
-      receiver.x = median_range * cos(angle) + 0.43;
-      receiver.y = median_range * sin(angle) - 0.02;
-      receiver.z = 1.3f;
-
-      add_giver_frame(receiver);
-
-      processed_scan = *msg;
-      processed_scan.ranges.clear();
-      processed_scan.ranges = filtered_scan;
-      pub_processed_scan.publish(processed_scan);
-
-      //std::exit(3);
+      angle_min = msg->angle_min;
+      angle_increment = msg->angle_increment;
     }
 
     float calculate_median(std::vector<float>& v){
@@ -93,7 +68,7 @@ class ScannerServer{
      return median;
    }
 
-   void add_giver_frame(geometry_msgs::Point& p){
+    void add_giver_frame(geometry_msgs::Point& p){
      // TRANSFORM THE POINT TO THE LINK_0 FRAME
      geometry_msgs::Point p_transformed;
      p_transformed.x = p.x + 0.332;
@@ -102,7 +77,7 @@ class ScannerServer{
      // CALCULATE ANGLE
      float hypotenuse = sqrt(pow(p_transformed.x, 2.0f) + pow(p_transformed.y, 2.0f));
      float rot = asin(p_transformed.y/hypotenuse);
-     std::cout<<"rot "<<rot<<std::endl;
+     //std::cout<<"rot "<<rot<<std::endl;
 
      // PUBLISH NEW FRAME
      geometry_msgs::TransformStamped giver_frame;
@@ -121,26 +96,71 @@ class ScannerServer{
      tf_broadcaster.sendTransform(giver_frame);
    }
 
+    bool getReceiverPose(rob10::requestReceiverPose::Request& req, rob10::requestReceiverPose::Response& res){
+      std::cout<<"server"<<std::endl;
+      //std::vector<float> filtered_scan;
+      std::vector<float> range;
+      std::vector<float> angle_index;
+      for (size_t i = 0; i < scan.size(); i++) {
+        if ( scan[i]<0.5 || scan[i]>1.0 || std::isnan(scan[i]) ) {
+          //filtered_scan.push_back(0);
+          continue;
+        } else {
+          //filtered_scan.push_back(scan[i]);
+          range.push_back(scan[i]);
+          angle_index.push_back(i);
+        }
+      }
+      //std::cout<<range.size()<<std::endl;
 
+      if (range.size() == 0){
+        receiver_detected = false;
+        std::cout<<"No scan data left after filterring"<<std::endl;
+        res.success.data = false;
+        res.receiver.x = -1.0f;
+        res.receiver.y = -1.0f;
+        res.receiver.z = -1.0f;
+      } else {
+        receiver_detected = true;
+        res.success.data = true;
+        float median_range = calculate_median(range);
+        float median_angle = calculate_median(angle_index);
+        float angle = angle_min + (median_angle*angle_increment);
+        //std::cout<<"Median_range "<<median_range<<std::endl;
+        //std::cout<<"Median_angle "<<median_angle<<std::endl;
+        //std::cout<<"angle "<<angle<<std::endl;
 
-    bool getHumanPose(rob10::requestHumanPose::Request& req, rob10::requestHumanPose::Response& res){
-      std::cout<<"TODO"<<std::endl;
+        // POLAR TO CARTESIAN + TRANSFORM TO WORLD FRAME
+        receiver.point.x = median_range * cos(angle);
+        receiver.point.y = median_range * sin(angle);
+        receiver.point.z = 1.3f;
+        res.receiver = receiver.point;
+        //res.receiver.x = median_range * cos(angle) + 0.43;
+        //res.receiver.y = median_range * sin(angle) - 0.02;
+        //res.receiver.z = 1.3f;
 
+        add_giver_frame(res.receiver);
+
+        //processed_scan = *msg;
+        //processed_scan.ranges.clear();
+        //processed_scan.ranges = filtered_scan;
+        //pub_processed_scan.publish(processed_scan);
+      }
     }
 };
 
 int main(int argc, char **argv)
 {
   ros::init(argc, argv, "scan_processing_server_node");
-
   ScannerServer server;
-  //camera.initializeRealsense();
-  //camera.update();
-
+  server.receiver_detected = false;
   //ros::Rate loop_rate(30);
-  std::cout<<"Server is running"<<std::endl;
+
+  std::cout<<"Scan processing server is running"<<std::endl;
   while(ros::ok()){
-    //camera.publishPointcloud();
+    if (server.receiver_detected){
+      server.publishReceiverPose();
+    }
     ros::spinOnce();
     //loop_rate.sleep();
   }
