@@ -6,9 +6,10 @@ from scipy.spatial.transform import Rotation as R
 def get_quat_from_matrix(transformation):
     #print(transformation)
     rot_mat = np.zeros((3,3))
-    for i in range(0, 3):
-        for j in range(0, 3):
-            rot_mat[i,j] = transformation[i,j]
+    rot_mat = transformation[:3, :3]
+    #for i in range(0, 3):
+        #for j in range(0, 3):
+            #rot_mat[i,j] = transformation[i,j]
     #print(rot_mat)
     q = R.from_matrix(rot_mat).as_quat()
     # MAY NOT BE NECESSARY, SEEMS TO BE NORMALIZED
