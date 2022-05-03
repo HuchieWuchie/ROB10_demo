@@ -63,16 +63,16 @@ def k_means_clustering(observations, number_of_clusters, max_iterations, toleran
                 #print(sum_of_errors)
                 converged = True
                 #break
-                return sum_of_errors, converged
+                return sum_of_errors, converged, labels
             else:
                 print("Iteration " + str(iteration))
                 #print("Next iteration")
                 #print(centroids_diff)
         else:
-            print("Did not converged")
+            print("Did not converge")
             sum_of_errors = np.sum(error)
             converged = False
-            return sum_of_errors, converged
+            return sum_of_errors, converged, labels
 
         iteration = iteration + 1
     """
@@ -172,7 +172,7 @@ def compare_centroids(previous_centroids, current_centroids):
     return centroids_diff
 
 def visualise(errors, number_of_clusters, did_not_converged):
-    print("===DID NOT CONVERGE===")
+    print("===VISUALISATION DID NOT CONVERGE===")
     print(did_not_converged)
     #text_to_plot = "The algorithm did not converge for \n" + str(did_not_converged) + "clusters"
     x = np.arange(1, number_of_clusters)
@@ -181,46 +181,59 @@ def visualise(errors, number_of_clusters, did_not_converged):
     plt.plot(x, y)
     plt.xlabel("Number of clusters")
     plt.ylabel("Error")
+    plt.title("")
     #plt.text(5,5, text_to_plot)
     plt.grid()
     plt.savefig('/home/daniel/iiwa_ws/src/ROB10/mean_handover_orientation/figures/cluster_analysis.pdf')
+
     plt.show()
 
 
 
 if __name__ == '__main__':
     number_of_clusters = 1
-    max_number_of_cluster = 7
+    max_number_of_cluster = 4 #7
     clustering_iterations = 5
-    max_iterations = 10
+    max_iterations = 5 #10
     tolerance = 0.01
 
     min_error = None
     min_errors = []
     did_not_converged = []
     mean_orientations = get_the_mean_orientations()
-
+    labeled_observations = [[] for i in range(max_number_of_cluster - 1)]
     #print(mean_orientations)
     while number_of_clusters < max_number_of_cluster:
+        computed_data = []
+        computed_data.append(number_of_clusters)
         converged_once = False
         print("==="+str(number_of_clusters)+" CLUSTERS===")
 
         for i in range(clustering_iterations):
-            error, converged = k_means_clustering(mean_orientations, number_of_clusters, max_iterations, tolerance)
+            error, converged, labels = k_means_clustering(mean_orientations, number_of_clusters, max_iterations, tolerance)
             if converged:
                 converged_once = True
 
             if i == 0:
+                min_labels = labels
                 min_error = error
             else:
+                prev_min_error = min_error
                 min_error = min(error, min_error)
+                if min_error != prev_min_error:
+                    min_labels = labels
 
         if converged_once == False:
             did_not_converged.append(number_of_clusters)
 
         print("===MINIMUM RECORDER ERROR===")
         print(min_error)
+        computed_data.append(min_labels)
+        labeled_observations[number_of_clusters-1] = computed_data
         min_errors.append(min_error)
         number_of_clusters = number_of_clusters + 1
+
+    for i in range(max_number_of_cluster-1):
+        print(labeled_observations[i])
 
     visualise(min_errors, number_of_clusters, did_not_converged)
