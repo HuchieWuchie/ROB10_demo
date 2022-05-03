@@ -4,7 +4,8 @@
 import os
 import numpy as np
 import scipy.optimize
-from scipy.spatial.transform import Rotation as R
+#from scipy.spatial.transform import Rotation as R
+import matplotlib.pyplot as plt
 
 def get_the_mean_orientations():
     with open('/home/daniel/iiwa_ws/src/ROB10/mean_handover_orientation/mean_handover_orientations.txt') as f:
@@ -33,14 +34,13 @@ def get_random_quaternion():
     q = q/q_mag
     return q
 
-def k_means_clustering(observations, number_of_clusters):
+def k_means_clustering(observations, number_of_clusters, max_iterations, tolerance):
     centroids = np.zeros((number_of_clusters, 4))
     previous_centroids = np.zeros((number_of_clusters, 4))
     labels = np.zeros(len(observations))
     for i in range(number_of_clusters):
             centroids[i, :] = get_random_quaternion()
-    tolerance = 0.001
-    max_iterations = 50
+    #tolerance = 0.001
     iteration = 0
     while True:
         if iteration < max_iterations:
@@ -60,18 +60,19 @@ def k_means_clustering(observations, number_of_clusters):
                 print("Converged")
                 #print(centroids_diff)
                 sum_of_errors = np.sum(error)
-                print(sum_of_errors)
+                #print(sum_of_errors)
                 converged = True
                 #break
                 return sum_of_errors, converged
             else:
                 print("Iteration " + str(iteration))
-                converged = False
-                
                 #print("Next iteration")
                 #print(centroids_diff)
         else:
-            break
+            print("Did not converged")
+            sum_of_errors = np.sum(error)
+            converged = False
+            return sum_of_errors, converged
 
         iteration = iteration + 1
     """
@@ -170,19 +171,47 @@ def compare_centroids(previous_centroids, current_centroids):
         #print(diff)
     return centroids_diff
 
+def visualise(errors, number_of_clusters, did_not_converged):
+    y = np.arange(1, number_of_clusters)
+    x = np.asarray(errors)
+    plt.scatter(x, y)
+    plt.show()
+    print("===DID NOT CONVERGE===")
+    print(did_not_converged)
 
 if __name__ == '__main__':
     number_of_clusters = 1
-    min_error =None
+    max_number_of_cluster = 7
+    clustering_iterations = 5
+    max_iterations = 5
+    tolerance = 0.001
+
+    min_error = None
+    min_errors = []
+    did_not_converged = []
     mean_orientations = get_the_mean_orientations()
+
     #print(mean_orientations)
-    while number_of_clusters < 7:
-        for i in range(10):
-            error, converged = k_means_clustering(mean_orientations, number_of_clusters)
+    while number_of_clusters < max_number_of_cluster:
+        converged_once = False
+        print("==="+str(number_of_clusters)+" CLUSTERS===")
+        
+        for i in range(clustering_iterations):
+            error, converged = k_means_clustering(mean_orientations, number_of_clusters, max_iterations, tolerance)
+            if converged:
+                converged_once = True
+
             if i == 0:
                 min_error = error
             else:
                 min_error = min(error, min_error)
-        number_of_clusters = number_of_clusters + 1
+
+        if converged_once == False:
+            did_not_converged.append(number_of_clusters)
+
         print("===MINIMUM RECORDER ERROR===")
         print(min_error)
+        min_errors.append(min_error)
+        number_of_clusters = number_of_clusters + 1
+
+    visualise(min_errors, number_of_clusters, did_not_converged)
