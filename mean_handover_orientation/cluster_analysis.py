@@ -172,19 +172,28 @@ def compare_centroids(previous_centroids, current_centroids):
     return centroids_diff
 
 def visualise(errors, number_of_clusters, did_not_converged):
-    y = np.arange(1, number_of_clusters)
-    x = np.asarray(errors)
-    plt.scatter(x, y)
-    plt.show()
     print("===DID NOT CONVERGE===")
     print(did_not_converged)
+    #text_to_plot = "The algorithm did not converge for \n" + str(did_not_converged) + "clusters"
+    x = np.arange(1, number_of_clusters)
+    y = np.asarray(errors)
+    plt.scatter(x, y)
+    plt.plot(x, y)
+    plt.xlabel("Number of clusters")
+    plt.ylabel("Error")
+    #plt.text(5,5, text_to_plot)
+    plt.grid()
+    plt.savefig('/home/daniel/iiwa_ws/src/ROB10/mean_handover_orientation/figures/cluster_analysis.pdf')
+    plt.show()
+
+
 
 if __name__ == '__main__':
     number_of_clusters = 1
     max_number_of_cluster = 7
     clustering_iterations = 5
-    max_iterations = 5
-    tolerance = 0.001
+    max_iterations = 10
+    tolerance = 0.01
 
     min_error = None
     min_errors = []
@@ -195,7 +204,7 @@ if __name__ == '__main__':
     while number_of_clusters < max_number_of_cluster:
         converged_once = False
         print("==="+str(number_of_clusters)+" CLUSTERS===")
-        
+
         for i in range(clustering_iterations):
             error, converged = k_means_clustering(mean_orientations, number_of_clusters, max_iterations, tolerance)
             if converged:
