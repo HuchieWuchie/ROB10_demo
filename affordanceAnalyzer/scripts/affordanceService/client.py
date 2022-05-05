@@ -8,7 +8,7 @@ import cv2
 import numpy as np
 
 from sensor_msgs.msg import Image
-from std_msgs.msg import Float32
+from std_msgs.msg import Float32, Float32MultiArray, Int32MultiArray, MultiArrayDimension, String
 
 from cameraService.cameraClient import CameraClient
 from affordance_analyzer.srv import *
@@ -27,7 +27,7 @@ def get_optimal_font_scale(text, width):
 class AffordanceClient(object):
     """docstring for AffordanceClient."""
 
-    def __init__(self):
+    def __init__(self, connected = True):
 
         self.no_objects = 0
         self.masks = None
@@ -35,7 +35,10 @@ class AffordanceClient(object):
         self.objects = None
         self.scores = None
         self.GPU = False
-        self.name = self.getName()
+
+        self.name = "affordancenet_synth"
+        if connected:
+            self.name = self.getName()
 
         if self.name == "affordancenet":
             self.noObjClass = 11
@@ -129,16 +132,12 @@ class AffordanceClient(object):
         msg = getAffordanceSrv()
         msg.data = True
         response = affordanceNetService(msg)
-        #print("Receiving data from affordance service took: ", (time.time() - s2) * 1000 )
 
-        s3 = time.time()
-        no_objects = int(response.masks.layout.dim[0].size / self.noLabelClass)
-        self.no_objects = no_objects
-        masks = np.asarray(response.masks.data).reshape((no_objects, int(response.masks.layout.dim[0].size / no_objects), response.masks.layout.dim[1].size, response.masks.layout.dim[2].size)) #* 255
-        self.masks = masks.astype(np.uint8)
-        self.bbox = np.asarray(response.bbox.data).reshape((-1,4))
-        self.objects = np.asarray(response.object.data)
-        self.scores = np.asarray(response.confidence.data)
+        self.masks = self.unpackMasks(response.masks)
+        self.no_objects = self.masks.shape[0]
+        self.bbox = self.unpackBBox(response.bbox)
+        self.objects = self.unpackObjects(response.object)
+        self.scores = self.unpackScores(response.confidence)
 
         return self.masks, self.objects, self.scores, self.bbox
 
@@ -179,50 +178,74 @@ class AffordanceClient(object):
             return 0
 
         kernel = np.ones(erode_kernel, np.uint8)
-        """
-        for i in range(self.masks.shape[0]):
-            for j in range(self.masks[i].shape[0]):
 
-                if j >= 1: # we do not treat j=0 (background)
-                    mask = copy.deepcopy(self.masks[i,j])
-                    m = np.zeros((mask.shape[0], mask.shape[1])).astype(np.uint8)
-                    m[mask > 0] = 255
-                    m = cv2.erode(m, kernel)
-                    self.masks[i,j] = m
-        """
         #full_mask = np.zeros((self.masks.shape[1], self.masks.shape[2], self.masks.shape[3])).astype(np.uint8)
         m = np.zeros(masks.shape)
-        print(masks.shape)
         for i in range(masks.shape[0]):
             mask_arg = np.argmax(masks[i], axis = 0)
             color_idxs = np.unique(mask_arg)
             for color_idx in color_idxs:
                 if color_idx != 0:
                     m[i, color_idx, mask_arg == color_idx] = 1
-                    #print(masks[i, color_idx].shape)
         for i in range(m.shape[0]):
             for j in range(m[i].shape[0]):
                 m[i,j] = cv2.erode(m[i, j], kernel)
         return m
 
-    def visualizeMasks(self, img, masks):
+    def unpackMasks(self, msg):
 
-        if masks is None:
-            print("No masks available to visualize")
-            return 0
-        if masks.shape[0] < 0:
-            print("No masks available to visualize")
-            return 0
+        no_objects = int(msg.layout.dim[0].size / self.noLabelClass)
+        masks = np.asarray(msg.data).reshape((no_objects, int(msg.layout.dim[0].size / no_objects), msg.layout.dim[1].size, msg.layout.dim[2].size)) #* 255
+        masks = masks.astype(np.uint8)
 
-        colors = [(0,0,0), (0,0,255), (0,255,0), (122, 255, 122), (255, 0, 0),
-                (255, 255, 0), (255, 255, 255), (255, 0, 255), (122, 122, 122), (255, 255, 0), (70, 70, 70), (0,10,0)]
+        return masks
 
-        full_mask = np.zeros(img.shape).astype(np.uint8)
-        for i in range(masks.shape[0]):
-            for j in range(masks.shape[1]):
-                if j > 0:
-                    full_mask[masks[i, j] == 1] = colors[j]
+    def packMasks(self, masks):
 
-        img = cv2.addWeighted(img, 1.0, full_mask, 0.7, 0)
+        if len(masks.shape) <= 3:
+            masks = np.reshape(masks, (-1, masks.shape[0], masks.shape[1], masks.shape[2]))
 
-        return img
+        msg = Int32MultiArray()
+        intToLabel = {0: 'class', 1: 'height', 2: 'width'}
+
+        for i in range(3):
+            dimMsg = MultiArrayDimension()
+            dimMsg.label = intToLabel[i]
+            stride = 1
+            for j in range(3-i):
+                stride = stride * masks.shape[i+j + 1]
+            dimMsg.stride = stride
+            dimMsg.size = masks.shape[i + 1]
+            msg.layout.dim.append(dimMsg)
+        masks = masks.flatten().astype(int).tolist()
+        msg.data = masks
+
+        return msg
+
+    def unpackBBox(self, msg):
+        return np.asarray(msg.data).reshape((-1,4))
+
+    def packBbox(self, bbox):
+
+        msg = Int32MultiArray()
+        msg.data = bbox.flatten().astype(int).tolist()
+
+        return msg
+
+    def unpackObjects(self, msg):
+        return np.asarray(msg.data)
+
+    def packObjects(self, objects):
+
+        msg = Int32MultiArray()
+        msg.data = objects.flatten().tolist()
+
+        return msg
+
+    def unpackScores(self, msg):
+        return np.asarray(msg.data)
+
+    def packScores(self, scores):
+
+        msg = Float32MultiArray()
+        msg.data = scores.flatten().tolist()

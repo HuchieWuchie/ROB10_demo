@@ -6,6 +6,7 @@ import open3d as o3d
 from rob9.msg import *
 from rob9Utils.graspGroup import GraspGroup
 from rob9Utils.grasp import Grasp
+from rob9Utils.affordancetools import getPredictedAffordances, getAffordanceColors
 
 def visualizeGrasps6DOF(pointcloud, graspGroup, color = None):
     """ input:  pointcloud - open3d pointcloud
@@ -223,6 +224,52 @@ def visualizeFrame(x, y, z, translation, size = 0.1):
 
     return line_set
 
+def visualizeFrameMesh(translation, R, size = 0.1):
+    """ Input:  translation -   numpy array (x, y, z) or column vector
+                                the center point of the frame
+                R    -  numpy array 3X3 rotation matrix
+                size        -   float, length of lines in meters
+        output: axisMesh   -   o3d.geometry.TriangleMesh()
+    """
+
+    center = translation.flatten()
+    color_r, color_g, color_b = 0, 1, 0
+
+    x = create_mesh_box(1 * size, 0.1 * size, 0.1 * size)
+    y = create_mesh_box(0.1 * size, 1 * size, 0.1 * size)
+    z = create_mesh_box(0.1 * size, 0.1 * size, 1 * size)
+
+    x_points = np.array(x.vertices)
+    x_triangles = np.array(x.triangles)
+
+    y_points = np.array(y.vertices)
+    y_triangles = np.array(y.triangles) + 8
+
+    z_points = np.array(z.vertices)
+    z_triangles = np.array(z.triangles) + 16
+
+    vertices = np.concatenate([x_points, y_points, z_points], axis=0)
+    vertices = np.dot(R, vertices.T).T + center
+    triangles = np.concatenate([x_triangles, y_triangles, z_triangles], axis=0)
+
+    colors = []
+    for i in range(len(vertices)):
+        if i < 8:
+            colors.append([1, 0, 0])
+        elif i >= 8 and i < 16:
+            colors.append([0, 1, 0])
+        else:
+            colors.append([0, 0, 1])
+    colors = np.array(colors)
+
+    axisMesh = o3d.geometry.TriangleMesh()
+    axisMesh.vertices = o3d.utility.Vector3dVector(vertices)
+    axisMesh.triangles = o3d.utility.Vector3iVector(triangles)
+    axisMesh.vertex_colors = o3d.utility.Vector3dVector(colors)
+
+    return axisMesh
+
+
 
 # Make points ready to visualize in open3d pointcloud with color
 def viz_color_pointcloud(points, color):
@@ -232,3 +279,41 @@ def viz_color_pointcloud(points, color):
     pc_viz.colors = o3d.utility.Vector3dVector(colors)
     pc_viz.points = o3d.utility.Vector3dVector(points.astype(np.float32))
     return pc_viz
+
+def visualizeMasksInRGB(img, masks, colors = None):
+    """ Input:
+        img     -   np.array shape (h, w, c)
+        masks   -   np.array bool, shape (N, affordances, h, w)
+
+        Output:
+        img     -   np.array shape (h, w, c) with masks overlayed
+    """
+
+    if len(masks.shape) <= 3:
+        masks = np.reshape(masks, (-1, masks.shape[0], masks.shape[1], masks.shape[2]))
+
+    if masks is None:
+        print("No masks available to visualize")
+        return 0
+    if masks.shape[0] < 0:
+        print("No masks available to visualize")
+        return 0
+
+    if colors is None:
+        colors = getAffordanceColors()
+
+    else:
+        if len(colors) < masks.shape[1]:
+            print("Amount of colors is less than amount of affordances")
+            return 0
+
+    full_mask = np.zeros(img.shape).astype(np.uint8)
+    for obj_mask in masks:
+        for count, affordance_mask in enumerate(obj_mask):
+            if count >= 1:
+                m = affordance_mask == 1
+                full_mask[affordance_mask == 1] = colors[count]
+
+    img = cv2.addWeighted(img, 1.0, full_mask, 0.7, 0)
+
+    return img

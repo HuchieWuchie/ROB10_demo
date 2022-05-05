@@ -1,0 +1,7 @@
+sensor_msgs/PointCloud2 pcd
+std_msgs/Float32MultiArray uv
+std_msgs/Int32MultiArray masks
+std_msgs/Int32MultiArray bbox
+---
+std_msgs/Float32MultiArray current
+std_msgs/Float32MultiArray goal
