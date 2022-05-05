@@ -72,6 +72,7 @@ def get_classes():
     root, dirs, _ = next(os.walk(path))
     return dirs
 
+"""
 def get_variance(samples, mean):
     print("===MEAN===\n", mean)
     sum = 0
@@ -88,35 +89,103 @@ def get_variance(samples, mean):
     print("===VARIANCE===\n", variance)
     exit(2)
     return variance
+"""
+
+def get_variance(distances):
+    variance = np.zeros(3)
+    for i in range(3):
+        mean = np.sum(distances[:,i])/len(distances)
+        #print("===MEAN VARIANCE===\n", mean)
+        sum = 0
+        for j in range(len(distances)):
+            delta = distances[j,i] - mean
+            delta = delta**2
+            sum = sum + delta
+        variance[i] = sum/len(distances)
+
+    return variance
+
+def get_min_max_variance(variance):
+    variance = variance.tolist()
+    min_value = min(variance)
+    min_index = variance.index(min_value)
+    max_value = max(variance)
+    max_index = variance.index(max_value)
+
+    return min_index, max_index
+
 
 if __name__ == '__main__':
+    output_path = "/home/daniel/iiwa_ws/src/ROB10/mean_handover_orientation/recorded_variances.txt"
+    with open(output_path, 'w') as f:
+        f.truncate()
+
     classes = get_classes()
     print("===CLASSES===\n", classes)
+    axis_agreement = [[] for i in range(6)]
 
     for class_id in classes:
         observations = get_observations(class_id)
-        print("===OBSERVATIONS===\n", observations)
+        #print("===OBSERVATIONS===\n", observations)
         mean_orientation = get_mean_orientation(class_id)
-        print("===MEAN ORIENTATION===\n", mean_orientation)
+        #print("===MEAN ORIENTATION===\n", mean_orientation)
         rotated_x = np.zeros((3, len(observations)))
         rotated_y = np.zeros((3, len(observations)))
         rotated_z = np.zeros((3, len(observations)))
 
+        frame_mean_orientation = np.zeros((3,3))
+        frame_mean_orientation = rotate_frame(mean_orientation)
+        #print("===FRAME MEAN ORIENTATION===\n", frame_mean_orientation)
+        distances = []
+
         for i in range(len(observations)):
             rotated_frame = rotate_frame(observations[i])
-            rotated_x[:, i] = rotated_frame[:,0]
-            rotated_y[:, i] = rotated_frame[:,1]
-            rotated_z[:, i] = rotated_frame[:,2]
+            #print("===ROTATED FRAME ===\n", rotated_frame)
+            delta_mat = np.zeros((3,3))
+            delta_vec = np.zeros(3)
+            delta_mat = frame_mean_orientation - rotated_frame
+            #print("===DELTA===\n", delta_mat)
+            delta_vec[0] = np.linalg.norm(delta_mat[:,0])
+            delta_vec[1] = np.linalg.norm(delta_mat[:,1])
+            delta_vec[2] = np.linalg.norm(delta_mat[:,2])
+            distances.append(delta_vec)
 
         #print("===ROTATED X===\n", rotated_x)
         #print("===ROTATED Y===\n", rotated_y)
         #print("===ROTATED Z===\n", rotated_z)
-        frame_mean_orientation = np.zeros((3,3))
-        frame_mean_orientation = rotate_frame(mean_orientation)
-        print("===FRAME MEAN ORIENTATION===\n", frame_mean_orientation)
+        distances = np.asarray(distances)
+        #print("===DISTANCES===\n", distances)
         variance = np.zeros(3)
-        variance[0] = get_variance(rotated_x, frame_mean_orientation[:, 0])
-        variance[1] = get_variance(rotated_y, frame_mean_orientation[:, 1])
-        variance[2] = get_variance(rotated_z, frame_mean_orientation[:, 2])
-        print("===VARIANCE===\n", variance)
-        exit(3)
+        variance = get_variance(distances)
+        #print("===VARIANCE===\n", variance)
+        min_variance_axis, max_variance_axis = get_min_max_variance(variance)
+        #min_max_variance_string = "min_var_axis " + str(min_variance_axis) + " max_var_axis " + str(max_variance_axis)
+
+        if min_variance_axis == 0:
+            axis_agreement[0].append(class_id)
+        if min_variance_axis == 1:
+            axis_agreement[1].append(class_id)
+        if min_variance_axis == 2:
+            axis_agreement[2].append(class_id)
+        if max_variance_axis == 0:
+            axis_agreement[3].append(class_id)
+        if max_variance_axis == 1:
+            axis_agreement[4].append(class_id)
+        if max_variance_axis == 2:
+            axis_agreement[5].append(class_id)
+
+        variance_string = str(variance)
+        variance_string = variance_string.replace("[","")
+        variance_string = variance_string.replace("]","")
+        string_to_save = class_id + " " + variance_string + " " + "\n"
+
+        with open(output_path, 'a') as f:
+            f.write(string_to_save)
+
+    print("===MIN VARIANCE ON X AXIS===\n", axis_agreement[0])
+    print("===MIN VARIANCE ON Y AXIS===\n", axis_agreement[1])
+    print("===MIN VARIANCE ON Z AXIS===\n", axis_agreement[2])
+    print("==============================")
+    print("===MAX VARIANCE ON X AXIS===\n", axis_agreement[3])
+    print("===MAX VARIANCE ON Y AXIS===\n", axis_agreement[4])
+    print("===MAX VARIANCE ON Z AXIS===\n", axis_agreement[5])
