@@ -188,6 +188,29 @@ def quaternionFromRotation(R):
     q = np.flip(q) # reverse the array to get [x, y, z, w]
     return q
 
+def poseStampedToMatrix(msg):
+
+    position = np.zeros((3,1))
+    position[0, 0] = msg.pose.position.x
+    position[0, 1] = msg.pose.position.y
+    position[0, 2] = msg.pose.position.z
+
+    quaternion = np.zeros(4)
+    quaternion[0] = msg.pose.orientation.x
+    quaternion[1] = msg.pose.orientation.y
+    quaternion[2] = msg.pose.orientation.z
+    quaternion[3] = msg.pose.orientation.w
+
+    rotMat = quatToRot(quaternion)
+
+    T = np.identity(4)
+    T[:3,:3] = rotMat
+    T[:3,3] = position
+
+    return T
+
+
+
 def eulerFromQuaternion(q):
     pass
 """

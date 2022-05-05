@@ -158,16 +158,11 @@ class RealsenseServer{
 };
 
 void RealsenseServer::initializeRealsense(){
-    std::cout << "resetting a device" << std::endl;
+    //SOURCE - https://github.com/IntelRealSense/librealsense/issues/5052
+    /*std::cout << "resetting a device" << std::endl;
     rs2::context ctx;
     rs2::device dev = ctx.query_devices().front(); // Reset the first device
-    // Reset the first device
-    dev.hardware_reset();
-    //rs2::device_hub hub(ctx);
-    //dev = hub.wait_for_device();
-
-    //https://github.com/IntelRealSense/librealsense/issues/5052
-
+    dev.hardware_reset();*/
     std::cout << "initializing" << std::endl;
     pipe.start(cfg);
     //DROP STARTUP FRAMES

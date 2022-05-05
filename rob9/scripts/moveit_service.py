@@ -39,6 +39,23 @@ def planToNamed(req):
 
     return resp
 
+def planToPose(req):
+
+    print("Computing plan to given pose: ", req.pose)
+
+    goal_pose = 0
+    start_state = 0
+
+    state = get_ik(goal_pose, start_state)
+
+    if state_at_waypoint.error_code.val == 1:
+
+        joint_states_at_goal = list(state.solution.joint_state.position)
+        joint_values_at_goal = copy.deepcopy(joint_states_at_goal[2:9])
+        move_group.set_start_state(start_state)
+        move_group.set_joint_value_target(joint_values_at_waypoint)
+        plan = move_group.plan()
+
 
 def moveToNamed(req):
 

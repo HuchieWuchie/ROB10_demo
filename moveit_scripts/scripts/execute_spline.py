@@ -25,6 +25,8 @@ import rob9Utils.moveit as moveit
 from cameraService.cameraClient import CameraClient
 from affordanceService.client import AffordanceClient
 from grasp_service.client import GraspingGeneratorClient
+from orientationService.client import OrientationClient
+from locationService.client import LocationClient
 from rob9Utils.visualize import visualizeGrasps6DOF
 
 from moveit_scripts.srv import *
@@ -238,8 +240,9 @@ def callbackJointState(msg):
 
 
 def callback(msg):
-    global resp_trajectories, grasps_affordance, robot_is_moving
-    id = msg.data[0]
+    global resp_trajectories, grasps_affordance, robot_is_moving, pcd, masks, uv, bboxs
+
+	id = msg.data[0]
     requested_affordance_id = msg.data[1]
 
     affordance_ids = [1, 2, 3, 4, 5, 6, 7, 8, 9]
@@ -305,6 +308,71 @@ def callback(msg):
             print("I have grasped!")
         #input("Press Enter when you are ready to move the robot back to the ready pose") # outcommented by Albert Wed 23 March 09:06
     execute_spline_trajectory(moveit.planToNamed("ready"))
+
+	# computing goal pose of object in camera frame and
+	# current pose of object in camera frame
+	## 	  - Use ICP to get current goal orientation and position
+
+	geometry = np.asanyarray(pcd.points)
+	rotClient = OrientationClient()
+	current_orientation, current_position, goal_orientation = rotClient.getOrientation(geometry, uv, masks, bboxs) # we discard translation
+
+	# transform current pose into world frame
+	curr_rot_quat = transform.quaternionFromRotation(current_orientation)
+	curr_pose = np.hstack((current_position.flatten(), curr_rot_quat))
+	curr_pose_world = transform.transformToFrame(curr_pose, "world", "ptu_camera_color_optical_frame")
+
+	## Get goal position using linescan service
+
+	goal_rot_quat = transform.quaternionFromRotation(goal_orientation)
+
+	locClient = LocationClient()
+    goal_location = locClient.getLocation()
+	goal_location_giver = transform.transformToFrame(curr_pose, "giver", "world")
+	goal_pose_giver = np.hstack((goal_location.flatten(), goal_rot_quat))
+
+	goal_pose_world = transform.transformToFrame(goal_pose_giver, "world", "giver")
+
+	grasp_pose_world = goal_msg
+
+	# Compute the homegenous 4x4 transformation matrices
+
+	world_grasp_T = poseStampedToMatrix(grasp_pose_world)
+	world_centroid_T = poseStampedToMatrix(curr_pose_world)
+	world_centroid_T_goal = poseStampedToMatrix(goal_pose_world)
+
+	# Compute an end effector pose that properly orients the grasped tool
+
+    grasp_world_T = np.linalg.inv(world_grasp_T)
+    grasp_centroid_T = np.matmul(grasp_world_T, world_centroid_T)
+
+    centroid_grasp_T = np.linalg.inv(grasp_centroid_T)
+    world_grasp_T_goal = np.matmul(world_centroid_T_goal, centroid_grasp_T)
+    goal_q = quaternion_from_matrix(world_grasp_T_goal)
+
+    world_centroid_T_test = np.matmul(world_grasp_T, grasp_centroid_T)
+    world_centroid_T_goal_test = np.matmul(world_grasp_T_goal, grasp_centroid_T)
+
+	# Create poseStamped ros message
+
+	ee_goal_msg = geometry_msgs.msg.PoseStamped()
+    ee_goal_msg.header.frame_id = "world"
+    ee_goal_msg.header.stamp = rospy.Time.now()
+
+	ee_pose = Pose()
+	ee_pose.position.x = world_grasp_T_goal[0,3]
+	ee_pose.position.y = world_grasp_T_goal[1,3]
+	ee_pose.position.z = world_grasp_T_goal[2,3]
+
+	ee_pose.orientatoin.x = goal_q[0]
+	ee_pose.orientatoin.y = goal_q[1]
+	ee_pose.orientatoin.z = goal_q[2]
+	ee_pose.orientatoin.w = goal_q[3]
+
+	ee_goal_msg.pose = ee_pose
+
+	# call moveToPose with ee_goal_msg
+
     execute_spline_trajectory(moveit.planToNamed("handover"))
     rospy.sleep(2)
     #input("Press Enter when you are ready to move the robot back to the ready pose")
@@ -432,7 +500,7 @@ def sortByOrientationDifference(poses):
         waypoints_sorted[i] = waypoints[index]
 
 if __name__ == '__main__':
-    global grasps_affordance, img, affClient, pcd
+    global grasps_affordance, img, affClient, pcd, masks, bboxs
     demo = std_msgs.msg.Bool()
     demo.data = False
     if len(sys.argv) > 1:

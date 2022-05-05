@@ -118,6 +118,9 @@ class OrientationServer(object):
                                         target_colors = np.asanyarray(pcd_affordance.colors),
                                         tolerance=0.00001)
 
+        current_position = pcd_affordance.get_center()
+        T[:3,3] = current_position
+
         source_pcd.transform(T)
         return T, self.getGoalOrientation(predictions[0][0])
 

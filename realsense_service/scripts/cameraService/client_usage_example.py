@@ -16,27 +16,33 @@ if __name__ == "__main__":
 
     print("Starting")
     cam = CameraClient(type = "realsenseD435")
+    counter = 0
 
-    print("Capture new scene")
-    cam.captureNewScene()
+    while(counter<100):
+        print("Capture new scene " + str(counter))
+        counter += 1;
 
-    cam.getRGB()
-    cv2.imshow("rgb image", cam.rgb)
-    cv2.waitKey(0)
+        cam.captureNewScene()
 
-    # SOMETHING WRONG in cam.getDepth() -> ... dtype=np.float16 ...
-    cam.getDepth()
-    print(cam.depth)
-    print(np.unique(cam.depth))
-    #cv2.imshow("depth image", (cam.depth*255).astype(np.uint8))
-    #cv2.waitKey(0)
+        cam.getRGB()
+        #cv2.imshow("rgb image", cam.rgb)
+        #cv2.waitKey(0)
 
-    cam.getUvStatic()
-    print(cam.uv.shape)
-    print(cam.uv[0:10000])
+        # SOMETHING WRONG in cam.getDepth() -> ... dtype=np.float16 ...
+        cam.getDepth()
+        #print(cam.depth)
+        #print(np.unique(cam.depth))
+        #cv2.imshow("depth image", (cam.depth*255).astype(np.uint8))
+        #cv2.waitKey(0)
 
-    cloud, rgb = cam.getPointCloudStatic()
-    pcd = o3d.geometry.PointCloud()
-    pcd.points = o3d.utility.Vector3dVector(cloud)
-    pcd.colors = o3d.utility.Vector3dVector(rgb)
-    o3d.visualization.draw_geometries([pcd])
+        cam.getUvStatic()
+        #print(cam.uv.shape)
+        #print(cam.uv[0:10000])
+
+        cloud, rgb = cam.getPointCloudStatic()
+        #pcd = o3d.geometry.PointCloud()
+        #pcd.points = o3d.utility.Vector3dVector(cloud)
+        #pcd.colors = o3d.utility.Vector3dVector(rgb)
+        #o3d.visualization.draw_geometries([pcd])
+
+        #rospy.sleep(0.1)

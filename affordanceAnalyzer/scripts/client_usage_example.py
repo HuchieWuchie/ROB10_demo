@@ -20,32 +20,46 @@ if __name__ == "__main__":
     cloud_uv = cam.getUvStatic()
     img = cam.getRGB()
 
+    cv2.imshow("name", img)
+    cv2.waitKey(0)
+
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(cloud)
     pcd.colors = o3d.utility.Vector3dVector(cloudColor)
-    #affClient.start(GPU=True) # GPU acceleratio True or False
+    affClient.start(GPU=True) # GPU acceleratio True or False
     print(affClient.name)
     print("Telling affordanceNET to analyze image from realsense and return predictions.")
     success = affClient.run(img, CONF_THRESHOLD = 0.7)
-    masks, objects, scores, bbox = affClient.getAffordanceResult()
+    masks, labels, scores, bboxs = affClient.getAffordanceResult()
     print("Got result")
 
     print(scores)
 
-
-    masks = affClient.processMasks(conf_threshold = 230, erode_kernel=(3,3))
-    affClient.masks = masks
+    masks = affClient.processMasks(masks, conf_threshold = 0, erode_kernel=(1,1))
+    #masks = affClient.processMasks(conf_threshold = 230, erode_kernel=(3,3))
+    #affClient.masks = masks
     #width, height = img.shape[1], img.shape[0]
     #ratio = width / height
     #img = cv2.resize(img, (int(450 * ratio), 450), interpolation = cv2.INTER_AREA)
-    img = affClient.visualizeMasks(img)
-    img = affClient.visualizeBBox(img)
-    cv2.imshow("output", img)
+    #img = affClient.visualizeMasks(img, masks)
+    #img = affClient.visualizeBBox(img, labels, bboxs, scores)
+    cv2.imshow("output", affClient.visualizeBBox(affClient.visualizeMasks(img, masks), labels, bboxs, scores))
     cv2.waitKey(0)
+
+    if True:
+        np.save("masks.npy", masks.astype(np.bool))
+        np.save("labels.npy", labels)
+        np.save("bboxs.npy", bboxs)
+        np.save("scores.npy", scores)
+        np.save("cloudColor.npy", cloudColor)
+        np.save("uv.npy", cloud_uv)
+        cv2.imwrite("img.png", img)
+        o3d.io.write_point_cloud("pcd.ply", pcd)
 
 
     clouds_m = []
-    for obj_idx, obj_id in enumerate(objects):
+    """
+    for obj_idx, obj_id in enumerate(labels):
         print(obj_id, obj_idx)
         affordance_ids = [1, 2, 3, 4, 5, 6, 7, 8, 9]
         colors = [(0,0,205), (34,139,34), (192,192,128), (165, 42, 42), (128, 64, 128),
@@ -76,7 +90,7 @@ if __name__ == "__main__":
                 o3d.visualization.draw_geometries([pcd_m])
 
         o3d.visualization.draw_geometries([*clouds_m])
-
+    """
 
     print("Found the following objects")
     for i in range(len(affClient.objects)):

@@ -1,5 +1,5 @@
 //sudo chmod a+rw /dev/ttyACM0
-//rosrun urg_node urg_node
+  //rosrun urg_node urg_node
 
 //roslaunch urdf_tutorial display.launch model:=/home/daniel/iiwa_ws/src/ROB10/rob10/urdf/iiwa_setup.urdf.xacro
 
@@ -18,7 +18,7 @@
 #include "sensor_msgs/LaserScan.h"
 #include "geometry_msgs/PointStamped.h"
 
-#include "rob10/requestReceiverPose.h"
+#include "location_service/requestReceiverPose.h"
 
 class ScannerServer{
   public:
@@ -96,7 +96,7 @@ class ScannerServer{
      tf_broadcaster.sendTransform(giver_frame);
    }
 
-    bool getReceiverPose(rob10::requestReceiverPose::Request& req, rob10::requestReceiverPose::Response& res){
+    bool getReceiverPose(location_service::requestReceiverPose::Request& req, location_service::requestReceiverPose::Response& res){
       std::cout<<"server"<<std::endl;
       //std::vector<float> filtered_scan;
       std::vector<float> range;
