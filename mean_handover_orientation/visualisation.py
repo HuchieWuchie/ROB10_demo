@@ -26,7 +26,7 @@ def get_quat_from_matrix(transformation):
     q = q/q_mag
     return q
 
-def get_the_mean_transformation(class_name, orientations):
+def get_the_mean_transformation(class_name, lines):
     mean_orientation = np.zeros(4)
     for line in lines:
         line = line.replace("[","")
