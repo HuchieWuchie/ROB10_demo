@@ -1,6 +1,8 @@
 import os
 import numpy as np
 from scipy.spatial.transform import Rotation as R
+import matplotlib.pyplot as plt
+from pytransform3d.plot_utils import plot_vector
 
 def get_mean_orientation(class_name):
     with open('/home/daniel/iiwa_ws/src/ROB10/mean_handover_orientation/mean_handover_orientations.txt') as f:
@@ -41,6 +43,31 @@ def get_distances(group, frames, axis):
             distances.append(distance)
     return distances
 
+def get_distances_mat(group, frames, axis):
+    distances = np.zeros((len(group), len(group)))
+    for i in range(len(group)):
+        for j in range(len(group)):
+            delta = frames[i] - frames[j]
+            distance = np.linalg.norm(delta[:,axis])
+            distances[i,j] = distance
+    return distances
+
+def visualise(frames, fig_name, axis, col):
+    fig = plt.figure()
+    ax = fig.add_subplot(projection="3d")
+    ax.set_title(fig_name, fontsize = 40)
+    ax.set_xlim(-1, 1)
+    ax.set_ylim(-1, 1)
+    ax.set_zlim(-1, 1)
+
+    origin = np.array([0.0, 0.0, 0.0])
+    for frame in frames:
+        dir = np.reshape(frame[:, axis], 3)
+        ax = plot_vector(ax, start = origin, direction = dir, color=col)
+
+    return fig
+
+
 if __name__ == '__main__':
     groupAB = ["spatula", "knife", "hammer", "scissors", "scoop", "mallet", "ladle", "spoon"]
     groupC = ["cup", "mug", "bowl", "bottle"]
@@ -62,9 +89,15 @@ if __name__ == '__main__':
     rotated_frames_AB = np.asarray(rotated_frames_AB)
     print("===ROTATED FRAMES GROUP AB SHAPE===\n", np.shape(rotated_frames_AB))
 
-    distances_AB = get_distances(groupAB, rotated_frames_AB, 2)
-    distances_C = get_distances(groupC, rotated_frames_C, 0)
+    distances_AB = get_distances_mat(groupAB, rotated_frames_AB, 2)
+    distances_C = get_distances_mat(groupC, rotated_frames_C, 0)
 
     print("===DISTANCES GROUP AB===\n", distances_AB)
+    np.savetxt('/home/daniel/iiwa_ws/src/ROB10/mean_handover_orientation/distances_AB.csv', distances_AB, delimiter=',')
     print("=================================")
     print("===DISTANCES GROUP C===\n", distances_C)
+    np.savetxt('/home/daniel/iiwa_ws/src/ROB10/mean_handover_orientation/distances_C.csv', distances_C, delimiter=',')
+
+    fig_AB = visualise(rotated_frames_AB, "Group AB", 2, "blue")
+    fig_C = visualise(rotated_frames_C, "Group C", 0, "red")
+    plt.show()
