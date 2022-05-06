@@ -63,6 +63,7 @@ add_message_files(
    graspGroupSrv.srv
    moveitMoveToNamedSrv.srv
    moveitPlanToNamedSrv.srv
+   moveitPlanToPoseSrv.srv
    moveitMoveToPoseSrv.srv
    moveitExecuteSrv.srv
    moveitRobotStateSrv.srv

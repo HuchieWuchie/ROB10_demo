@@ -189,6 +189,12 @@ def quaternionFromRotation(R):
     return q
 
 def poseStampedToMatrix(msg):
+    """ Input:
+        msg         - geometry_msgs/PoseStamped
+
+        Output:
+        T           - np.array, shape (4,4) homogeneous transformation matrix
+    """
 
     position = np.zeros((3,1))
     position[0, 0] = msg.pose.position.x

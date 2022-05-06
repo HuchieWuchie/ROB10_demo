@@ -7,16 +7,14 @@ import numpy as np
 import time
 import open3d as o3d
 import cv2
-import actionlib
+#import actionlib
 
 import geometry_msgs.msg
 from geometry_msgs.msg import Pose, PoseStamped, PoseArray
 import std_msgs.msg
 from std_msgs.msg import Int8, MultiArrayDimension, MultiArrayLayout, Int32MultiArray, Float32MultiArray, Bool, Header
-from sensor_msgs.msg import PointCloud2, PointField, JointState
+from sensor_msgs.msg import PointCloud2, PointField
 import sensor_msgs.point_cloud2 as pc2
-from iiwa_msgs.msg import JointPosition, Spline, SplineSegment, MoveAlongSplineAction, MoveToJointPositionAction, MoveToJointPositionGoal, MoveAlongSplineGoal
-from iiwa_msgs.srv import SetPTPJointSpeedLimits, SetEndpointFrame, SetPTPCartesianSpeedLimits
 
 import rob9Utils.transformations as transform
 from rob9Utils.graspGroup import GraspGroup
@@ -27,85 +25,15 @@ from affordanceService.client import AffordanceClient
 from grasp_service.client import GraspingGeneratorClient
 from orientationService.client import OrientationClient
 from locationService.client import LocationClient
-from rob9Utils.visualize import visualizeGrasps6DOF
+from rob9Utils.visualize import visualizeGrasps6DOF, visualizeMasksInRGB
+import rob9Utils.iiwa
 
 from moveit_scripts.srv import *
 from moveit_scripts.msg import *
 from grasp_aff_association.srv import *
 from rob9.srv import graspGroupSrv, graspGroupSrvResponse
 
-from moveit_msgs.srv import *
-from moveit_msgs.msg import PositionIKRequest, RobotState, MoveItErrorCodes
-
 import time
-
-def setEndpointFrame(frame_id = "iiwa_link_ee"):
-	print("Setting endpoint frame to \"", frame_id, "\"...")
-	set_endpoint_frame_client = rospy.ServiceProxy("/iiwa/configuration/setEndpointFrame", SetEndpointFrame)
-	response = set_endpoint_frame_client.call(frame_id)
-
-	if not response.success:
-		print("Service call returned error: ", response.error)
-		return False
-
-	return True
-
-def setPTPJointSpeedLimits():
-    print("Setting PTP joint speed limits...")
-    set_ptp_joint_speed_client = rospy.ServiceProxy("/iiwa/configuration/setPTPJointLimits", SetPTPJointSpeedLimits)
-
-    joint_relative_vel = 1.0
-    joint_relative_acc = 1.0
-    response = set_ptp_joint_speed_client.call(joint_relative_vel, joint_relative_acc)
-
-
-    if not response.success:
-        print("Service call returned error: ", response.error)
-        return False
-
-
-    return True
-
-def setPTPCartesianSpeedLimits():
-    print("Setting PTP Cartesian speed limits...")
-    set_ptp_cartesian_speed_client = rospy.ServiceProxy("/iiwa/configuration/setPTPCartesianLimits", SetPTPCartesianSpeedLimits)
-
-    max_cartesian_vel = 1.0
-    max_cartesian_acc = 1.0
-    max_cartesian_jerk = 1.0 # ignore if -1.0
-    max_orientation_vel = 1.0
-    max_orientation_acc = 1.0
-    max_orientation_jerk = 1.0 # ignore
-
-    response = set_ptp_cartesian_speed_client(max_cartesian_vel, max_cartesian_acc, max_cartesian_jerk,
-                                                max_orientation_vel, max_orientation_acc, max_orientation_jerk)
-
-    if not response.success:
-        print("Service call returned error: ", response.error);
-        return False
-
-    return True
-
-def getSplineSegment (x, y, z, qx, qy, qz, qw, type = 0):
-    segment = SplineSegment()
-
-    segment.type = type;
-
-    segment.point.poseStamped.header.frame_id = "iiwa_link_0"
-
-    segment.point.poseStamped.pose.position.x = x
-    segment.point.poseStamped.pose.position.y = y
-    segment.point.poseStamped.pose.position.z = z
-
-    segment.point.poseStamped.pose.orientation.x = qx
-    segment.point.poseStamped.pose.orientation.y = qy
-    segment.point.poseStamped.pose.orientation.z = qz
-    segment.point.poseStamped.pose.orientation.w = qw
-
-    segment.point.redundancy.status = -1
-    segment.point.redundancy.turn = -1
-
-    return segment
 
 
 def associateGraspAffordance(graspData, objects, masks, cloud, cloud_uv, demo = False):
@@ -178,91 +106,21 @@ def send_trajectory_to_rviz(plan):
     display_trajectory.trajectory.append(plan)
     display_trajectory_publisher.publish(display_trajectory)
 
-def execute_spline_trajectory(plan):
-    print("Executing trajectory with spline motion")
-
-    # Compute cartesian poses for each point in joint trajectory
-
-    rospy.wait_for_service('/iiwa/compute_fk')
-    moveit_fk = rospy.ServiceProxy('/iiwa/compute_fk', GetPositionFK)
-
-    cartesian_poses = []
-
-    end_effector_link = ['iiwa_link_ee']
-    joint_names = []
-    joint_positions = []
-    for joint_position in plan.joint_trajectory.points:
-        for i in range(7):
-          joint_names.append('iiwa_joint_'+str(i + 1)) # joint names, see /iiwa/joint_state
-          print(joint_position)
-          joint_positions.append(joint_position.positions[i])
-        header = Header(0,rospy.Time.now(),"iiwa_link_0") # base of IIWA
-        rs = RobotState()
-        rs.joint_state.name = joint_names
-        rs.joint_state.position = joint_positions
-        fk_result = moveit_fk(header, end_effector_link, rs) # Lookup the pose
-
-        x, y, z = fk_result.pose_stamped[0].pose.position.x, fk_result.pose_stamped[0].pose.position.y, fk_result.pose_stamped[0].pose.position.z
-        qx, qy, qz, qw = fk_result.pose_stamped[0].pose.orientation.x, fk_result.pose_stamped[0].pose.orientation.y, fk_result.pose_stamped[0].pose.orientation.z, fk_result.pose_stamped[0].pose.orientation.w
-
-        cartesian_poses.append([x, y, z, qx, qy, qz, qw])
-
-    # Assemble spline with SPL motions
-
-    spline_motion = MoveAlongSplineGoal()
-
-    for pose in cartesian_poses:
-        x, y, z, qx, qy, qz, qw = pose
-        spline_motion.spline.segments.append(getSplineSegment(x, y, z, qx, qy, qz, qw, type = 0))
-
-    # Send and execute
-    spline_motion_client = actionlib.SimpleActionClient("/iiwa/action/move_along_spline", MoveAlongSplineAction)
-
-    print("Waiting for action servers to start...")
-    spline_motion_client.wait_for_server()
-
-    spline_motion_client.send_goal(spline_motion)
-    spline_motion_client.wait_for_result()
-
-
-def callbackJointState(msg):
-    global robot_is_moving
-
-    positive_velocity = False
-    for vel in msg.velocity:
-        if round(vel, 1) != 0:
-            positive_velocity = True
-
-    if positive_velocity:
-        robot_is_moving = True
-    else:
-        robot_is_moving = False
-
 
 def callback(msg):
-    global resp_trajectories, grasps_affordance, robot_is_moving, pcd, masks, uv, bboxs
+    global resp_trajectories, grasps_affordance, pcd, masks, uv, bboxs
 
 	id = msg.data[0]
     requested_affordance_id = msg.data[1]
 
     affordance_ids = [1, 2, 3, 4, 5, 6, 7, 8, 9]
 
-    # Select affordance label to grasp
+    # Select grasps of objects with correct affordance
     graspObj = GraspGroup(grasps = copy.deepcopy(grasps_affordance.getgraspsByTool(id = id)))
-    graspAffordance = GraspGroup(grasps = [])
+    graspAffordance_tool = GraspGroup(grasps = copy.deepcopy(graspObj.getgraspsByAffordanceLabel(label = requested_affordance_id)))
 
-    for affordance_id in affordance_ids:
-        if affordance_id == requested_affordance_id:# or affordance_id != 7:
-            graspAffordance.combine(GraspGroup(grasps = copy.deepcopy(graspObj.getgraspsByAffordanceLabel(label = affordance_id) ) ))
-
-    grasps_affordance_tool = graspAffordance
-
+	# Compute waypoints for each grasp, could be a for loop instead with a break statement
     grasp_waypoints_path = computeWaypoints(grasps_affordance_tool, offset = 0.1)
-
-
-    azimuthAngleLimit = [-1*math.pi, 1*math.pi]
-    polarAngleLimit = [0, 0.5*math.pi]
-    #grasp_waypoints_path = filterBySphericalCoordinates(grasp_waypoints_path, azimuth = azimuthAngleLimit, polar = polarAngleLimit)
 
     print("Calling the trajectory service")
     rospy.wait_for_service('iiwa/get_trajectories')
@@ -287,27 +145,29 @@ def callback(msg):
         if resp_trajectories.trajectories_poses.poses[i].header.frame_id == id:
             goal_poses.append(resp_trajectories.trajectories_poses.poses[i])
 
+	# Construct poseStamped messages
+
     waypoint_msg = geometry_msgs.msg.PoseStamped()
     waypoint_msg.header.frame_id = "world"
     waypoint_msg.header.stamp = rospy.Time.now()
     waypoint_msg.pose = goal_poses[0].pose
-    pub_waypoint.publish(waypoint_msg)
+    pub_waypoint.publish(waypoint_msg) # Publish to RVIZ visualization
 
     goal_msg = geometry_msgs.msg.PoseStamped()
     goal_msg.header.frame_id = "world"
     goal_msg.header.stamp = rospy.Time.now()
     goal_msg.pose = goal_poses[1].pose
-    pub_grasp.publish(goal_msg)
+    pub_grasp.publish(goal_msg) # Publish to RVIZ visualization
 
     for i in range(3):
         send_trajectory_to_rviz(plans[i])
-        execute_spline_trajectory(plans[i])
+        rob9Utils.iiwa.execute_spline_trajectory(plans[i])
         if i == 1:
             gripper_pub.publish(close_gripper_msg) # incommented by Albert Wed 23 March 09:06
             rospy.sleep(1) # incommented by Albert Wed 23 March 09:06
             print("I have grasped!")
         #input("Press Enter when you are ready to move the robot back to the ready pose") # outcommented by Albert Wed 23 March 09:06
-    execute_spline_trajectory(moveit.planToNamed("ready"))
+    rob9Utils.iiwa.execute_spline_trajectory(moveit.planToNamed("ready"))
 
 	# computing goal pose of object in camera frame and
 	# current pose of object in camera frame
@@ -371,16 +231,17 @@ def callback(msg):
 
 	ee_goal_msg.pose = ee_pose
 
-	# call moveToPose with ee_goal_msg
+	# call planToPose with ee_goal_msg
+	ee_plan = moveit.planToPose(ee_goal_msg)
 
-    execute_spline_trajectory(moveit.planToNamed("handover"))
+	# Execute plan to handover pose
+	rob9Utils.iiwa.execute_spline_trajectory(ee_plan)
     rospy.sleep(2)
     #input("Press Enter when you are ready to move the robot back to the ready pose")
 
-    #moveit.moveToNamed("ready")
     gripper_pub.publish(open_gripper_msg)
     rospy.sleep(2)
-    execute_spline_trajectory(moveit.planToNamed("ready"))
+    rob9Utils.iiwa.execute_spline_trajectory(moveit.planToNamed("ready"))
 
 def computeWaypoints(graspObjects, offset = 0.1):
     """ input:  graspsObjects   -   GraspGroup() of grasps
@@ -427,78 +288,6 @@ def computeWaypoints(graspObjects, offset = 0.1):
 
     return grasps_msg
 
-def filterBySphericalCoordinates(poses, azimuth, polar):
-    """ input:  poses   -   nav_msgs/Path, a list of waypoints and poses in pairs
-                azimut  -   numpy array shape 2, [minAngle, maxAngle]
-                polar   -   numpy array shape 2, [minAngle, maxAngle]
-        output:         -   nav_msgs/Path a list of waypoints and poses in pairs
-        Only returns waypoints and grasps that are inside the spherical angle
-        limits
-    """
-    grasps, waypoints = [], []
-    for i in range(int(len(poses.poses) / 2)):
-
-        waypointWorld = poses.poses[i]
-        graspWorld = poses.poses[i + 1]
-
-        # computing local cartesian coordinates
-        x = waypointWorld.pose.position.x - graspWorld.pose.position.x
-        y = waypointWorld.pose.position.y - graspWorld.pose.position.y
-        z = waypointWorld.pose.position.z - graspWorld.pose.position.z
-
-        # computing spherical coordinates
-        r, polarAngle, azimuthAngle = transform.cartesianToSpherical(x, y, z)
-
-        azimuthAngleLimit = azimuth
-        polarAngleLimit = polar
-
-        # Evaluating angle limits
-        if azimuthAngle > azimuthAngleLimit[0] and azimuthAngle < azimuthAngleLimit[1]:
-            if polarAngle > polarAngleLimit[0] and polarAngle < polarAngleLimit[1]:
-                waypoints.append(waypointWorld)
-                grasps.append(graspWorld)
-
-
-    if len(grasps) == 0 or len(waypoints) == 0:
-        print("Could not find grasp with appropriate angle")
-        grasp_msg = nav_msgs.msg.Path()
-        return grasps_msg # in case no grasps can be found, return empty message
-
-    grasps_msg = nav_msgs.msg.Path()
-    grasps_msg.header.frame_id = "world"
-    grasps_msg.header.stamp = rospy.Time.now()
-    for i in range(len(grasps)):
-        grasps_msg.poses.append(waypoints[i])
-        grasps_msg.poses.append(grasps[i])
-
-    return grasps_msg
-
-def sortByOrientationDifference(poses):
-    # Should be moved to GraspGroup.py
-    # not yet implemented! this is the old deltaRPY
-    """ input:  poses   -   nav_msgs/Path, a list of waypoints and grasps in pairs
-        output:         -   nav_msgs/Path, a list of waypoints and grasps in pairs
-        Sorted by the relative angle difference compared to current robot pose
-    """
-
-    eeWorld = tf_buffer.lookup_transform("world", "right_ee_link", rospy.Time.now(), rospy.Duration(1.0))
-    weightedSums = []
-
-    for i in range(len(grasps)):
-        deltaRPY = abs(transform.delta_orientation(grasps[i], eeWorld))
-        weightedSum = 0.2*deltaRPY[0]+0.4*deltaRPY[1]+0.4*deltaRPY[2]
-        weightedSums.append(weightedSum)
-
-    weightedSums_sorted = sorted(weightedSums)
-    grasps_sorted = [None]*len(grasps) # sorted according to delta orientation from current orientation of gripper
-    waypoints_sorted = [None]*len(waypoints)
-
-    for i in range(len(weightedSums)):
-        num = weightedSums_sorted[i]
-        index = weightedSums.index(num)
-        grasps_sorted[i] = grasps[index]
-        waypoints_sorted[i] = waypoints[index]
-
 if __name__ == '__main__':
     global grasps_affordance, img, affClient, pcd, masks, bboxs
     demo = std_msgs.msg.Bool()
@@ -515,27 +304,25 @@ if __name__ == '__main__':
     rospy.init_node('moveit_subscriber', anonymous=True)
 
     set_ee = True
-    if not setEndpointFrame():
+    if not rob9Utils.iiwa.setEndpointFrame():
         set_ee = False
     print("STATUS end point frame was changed: ", set_ee)
 
     set_PTP_speed_limit = True
-    if not setPTPJointSpeedLimits():
+    if not rob9Utils.iiwa.setPTPJointSpeedLimits():
         set_PTP_speed_limit = False
     print("STATUS PTP joint speed limits was changed: ", set_PTP_speed_limit)
 
     set_PTP_cart_speed_limit = True
-    if not setPTPCartesianSpeedLimits():
+    if not rob9Utils.iiwa.setPTPCartesianSpeedLimits():
         set_PTP_cart_speed_limit = False
     print("STATUS PTP cartesian speed limits was changed: ", set_PTP_cart_speed_limit)
 
     #rospy.Subscriber('tool_id', Int8, callback)
     rospy.Subscriber('objects_affordances_id', Int32MultiArray, callback )
-    rospy.Subscriber('/iiwa/joint_states', JointState, callbackJointState)
     gripper_pub = rospy.Publisher('iiwa/gripper_controller', Int8, queue_size=10, latch=True)
     pub_grasp = rospy.Publisher('iiwa/pose_to_reach', PoseStamped, queue_size=10)
     pub_waypoint = rospy.Publisher('iiwa/pose_to_reach_waypoint', PoseStamped, queue_size=10)
-    pub_iiwa = rospy.Publisher('iiwa/command/JointPosition', JointPosition, queue_size=10 )
     display_trajectory_publisher = rospy.Publisher('iiwa/move_group/display_planned_path',
                                                    moveit_msgs.msg.DisplayTrajectory,
                                                    queue_size=20)
@@ -562,7 +349,7 @@ if __name__ == '__main__':
     gripper_pub.publish(activate_gripper_msg)
     gripper_pub.publish(open_gripper_msg)
     gripper_pub.publish(pinch_gripper_msg)
-    execute_spline_trajectory(moveit.planToNamed("ready"))
+    rob9Utils.iiwa.execute_spline_trajectory(moveit.planToNamed("ready"))
 
     print("Services init")
 
@@ -623,7 +410,7 @@ if __name__ == '__main__':
     cv2.imshow("Detections", affClient.visualizeBBox(img, labels, bboxs, scores))
     cv2.imwrite("detections.png", affClient.visualizeBBox(img, labels, bboxs, scores))
     cv2.waitKey(0)
-    cv2.imshow("mask", affClient.visualizeMasks(img, masks))
+    cv2.imshow("mask", visualizeMasksInRGB(img, masks))
     cv2.waitKey(0)
 
     print("Computing task oriented grasps")

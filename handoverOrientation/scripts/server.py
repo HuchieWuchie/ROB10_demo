@@ -15,7 +15,7 @@ from std_msgs.msg import Header, Float32
 from orientation_service.srv import runOrientationSrv, runOrientationSrvResponse
 
 from rob9Utils.affordancetools import getPredictedAffordances, getAffordanceColors, getAffordanceContours, getObjectAffordancePointCloud
-from rob9Utils.utils import erodeMask, keepLargestContour, convexHullFromContours, maskFromConvexHull, thresholdMaskBySize, removeOverlapMask
+from rob9Utils.utils import keepLargestContour, convexHullFromContours, maskFromConvexHull, thresholdMaskBySize, removeOverlapMask
 
 from cameraService.cameraClient import CameraClient
 from affordanceService.client import AffordanceClient
@@ -70,8 +70,7 @@ class OrientationServer(object):
 
         for aff in affordances_in_object:
 
-            masks = erodeMask(affordance_id = aff, masks = masks,
-                            kernel = np.ones((3,3)))
+            masks[aff] = cv2.erode(masks[aff], np.ones((3,3)))
             contours = getAffordanceContours(bbox = bbox, affordance_id = aff,
                                             masks = masks)
             if len(contours) > 0:

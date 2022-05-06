@@ -4,12 +4,14 @@ import sys
 import rospy
 import moveit_commander
 import moveit_msgs
+from moveit_msgs.msg import GetPositionIK
 
 from rob9.srv import moveitMoveToNamedSrv, moveitMoveToNamedSrvResponse
 from rob9.srv import moveitPlanToNamedSrv, moveitPlanToNamedSrvResponse
 from rob9.srv import moveitMoveToPoseSrv, moveitMoveToPoseSrvResponse
 from rob9.srv import moveitExecuteSrv, moveitExecuteSrvResponse
 from rob9.srv import moveitRobotStateSrv, moveitRobotStateSrvResponse
+from rob9.srv import moveitPlanToPoseSrv, moveitPlanToPoseSrvResponse
 
 def moveToPose(req):
 
@@ -43,18 +45,41 @@ def planToPose(req):
 
     print("Computing plan to given pose: ", req.pose)
 
-    goal_pose = 0
-    start_state = 0
+    goal_pose = req.pose
+    start_state = getCurrentState(0)
 
-    state = get_ik(goal_pose, start_state)
+    goal_pose_msg = geometry_msgs.msg.PoseStamped()
+    goal_pose_msg.header.frame_id = "world"
+    goal_pose_msg.header.stamp = rospy.Time.now()
+    goal_pose_msg.pose = goal_pose
 
-    if state_at_waypoint.error_code.val == 1:
+    ik_request_msg = moveit_msgs.msg.PositionIKRequest()
+    ik_request_msg.group_name = "manipulator"
+    ik_request_msg.robot_state = start_state
+    ik_request_msg.avoid_collisions = True #False
+    ik_request_msg.pose_stamped = goal_pose_msg
+    ik_request_msg.timeout = rospy.Duration(1.0) #
+    ik_request_msg.attempts = 10
 
-        joint_states_at_goal = list(state.solution.joint_state.position)
+    rospy.wait_for_service('compute_ik')
+    ik_calculator = rospy.ServiceProxy("compute_ik", GetPositionIK)
+
+    goal_state = calculate_ik(request_msg)
+
+    plan = 0
+
+    if goal_state.error_code.val == 1:
+
+        joint_states_at_goal = list(goal_state.solution.joint_state.position)
         joint_values_at_goal = copy.deepcopy(joint_states_at_goal[2:9])
         move_group.set_start_state(start_state)
         move_group.set_joint_value_target(joint_values_at_waypoint)
         plan = move_group.plan()
+
+    resp = moveitPlanToPoseSrvResponse()
+    resp.plan = plan
+
+    return resp
 
 
 def moveToNamed(req):
@@ -98,6 +123,7 @@ if __name__ == '__main__':
 
     moveToNameService = rospy.Service(baseServiceName + "move_to_named", moveitMoveToNamedSrv, moveToNamed)
     planToNameService = rospy.Service(baseServiceName + "plan_to_named", moveitPlanToNamedSrv, planToNamed)
+    planToNameService = rospy.Service(baseServiceName + "plan_to_pose", moveitPlanToPoseSrv, planToPose)
     moveToPoseService = rospy.Service(baseServiceName + "move_to_pose", moveitMoveToPoseSrv, moveToPose)
     executeService = rospy.Service(baseServiceName + "execute", moveitExecuteSrv, execute)
     robotStateService = rospy.Service(baseServiceName + "getRobotState", moveitRobotStateSrv, getCurrentState)
