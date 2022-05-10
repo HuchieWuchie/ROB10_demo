@@ -28,6 +28,11 @@ class Position(object):
         elif index is 2:
             return self.z
 
+    def set(self, x, y, z):
+        self.x = x
+        self.y = y
+        self.z = z
+
     def getVector(self, format="row"):
         if format == "row":
             return np.array([self.x, self.y, self.z])

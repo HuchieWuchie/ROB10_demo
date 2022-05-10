@@ -13,7 +13,7 @@ class OrientationClient(object):
 
         self.method = 0 # learned from observation
 
-    def getOrientation(self, pcd, uv, masks, bbox = None):
+    def getOrientation(self, pcd_affordance):
 
         print("Waiting for orientation service...")
         rospy.wait_for_service("/computation/handover_orientation/get")
@@ -24,17 +24,17 @@ class OrientationClient(object):
         camClient = CameraClient()
         affClient = AffordanceClient(connected = False)
 
-        pcd_msg, _ = camClient.packPCD(pcd, 0)
-        uv_msg = camClient.packUV(uv)
-        masks_msg = affClient.packMasks(masks)
+        pcd_points = np.asanyarray(pcd_affordance.points)
+        pcd_colors = np.asanyarray(pcd_affordance.colors)
 
-        bbox_msg = Int32MultiArray()
-        if bbox is not None:
-            bbox_msg = affClient.packBbox(bbox)
+        if np.max(pcd_colors) <= 1:
+            pcd_colors = pcd_colors * 255
+
+        pcd_geometry_msg, pcd_color_msg = camClient.packPCD(pcd_points, pcd_colors)
 
         print("Message constructed")
 
-        response = orientationService(pcd_msg, uv_msg, masks_msg, bbox_msg)
+        response = orientationService(pcd_geometry_msg, pcd_color_msg)
 
         current_orientation, current_translation, goal_orientation = self.unpackOrientation(response.current, response.goal)
 

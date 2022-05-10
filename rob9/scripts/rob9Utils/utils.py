@@ -92,3 +92,11 @@ def keepLargestContour(contours):
             idx = count
 
     return [contours[idx]]
+
+def erodeMask(affordance_id, masks, kernel):
+
+    m = masks[affordance_id, :, :]
+    m = cv2.erode(m, kernel)
+    masks[affordance_id] = m
+
+    return masks

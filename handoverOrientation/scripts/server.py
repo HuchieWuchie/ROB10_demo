@@ -15,7 +15,7 @@ from std_msgs.msg import Header, Float32
 from orientation_service.srv import runOrientationSrv, runOrientationSrvResponse
 
 from rob9Utils.affordancetools import getPredictedAffordances, getAffordanceColors, getAffordanceContours, getObjectAffordancePointCloud
-from rob9Utils.utils import keepLargestContour, convexHullFromContours, maskFromConvexHull, thresholdMaskBySize, removeOverlapMask
+from rob9Utils.utils import erodeMask, keepLargestContour, convexHullFromContours, maskFromConvexHull, thresholdMaskBySize, removeOverlapMask
 
 from cameraService.cameraClient import CameraClient
 from affordanceService.client import AffordanceClient
@@ -63,41 +63,16 @@ class OrientationServer(object):
         todo = True
         return setSettingsOrientationSrvResponse()
 
-    def methodObservation(self, points, uv, masks, bbox = None):
-
-        affordances_in_object = getPredictedAffordances(masks = masks, bbox = bbox)
-        print("predicted affordances", affordances_in_object)
-
-        for aff in affordances_in_object:
-
-            masks[aff] = cv2.erode(masks[aff], np.ones((3,3)))
-            contours = getAffordanceContours(bbox = bbox, affordance_id = aff,
-                                            masks = masks)
-            if len(contours) > 0:
-                contours = keepLargestContour(contours)
-                hulls = convexHullFromContours(contours)
-
-                h, w = masks.shape[-2], masks.shape[-1]
-                if bbox is not None:
-                    h = int(bbox[3] - bbox[1])
-                    w = int(bbox[2] - bbox[0])
-
-                aff_mask = maskFromConvexHull(h, w, hulls = hulls)
-                _, keep = thresholdMaskBySize(aff_mask, threshold = 0.05)
-                if keep == False:
-                    aff_mask[:, :] = False
-
-                if bbox is not None:
-                    masks[aff, bbox[1]:bbox[3], bbox[0]:bbox[2]] = aff_mask
-                else:
-                    masks[aff, :, :] = aff_mask
-
-        masks = removeOverlapMask(masks = masks)
-
-        pcd = o3d.geometry.PointCloud()
-        pcd.points = o3d.utility.Vector3dVector(points)
-
-        pcd_affordance = getObjectAffordancePointCloud(pcd, masks, uvs = uv)
+    def methodObservation(self, pcd_affordance):
+        """ Input:
+            pcd_affordance  - o3d.geometry.PointCloud(), point cloud of object
+                              where each point's color is their respective
+                              affordance
+            Output:
+            T               - np.array(), shape (4,4) homogeneous transformation
+                              matrix describing current pose of object
+            G               - goal orientation
+        """
 
         feature_vector = self.computeFeatureVector(pcd_affordance)
         dist, predictions = self.nn_classifier.kneighbors(feature_vector, n_neighbors = 1)
@@ -117,9 +92,6 @@ class OrientationServer(object):
                                         target_colors = np.asanyarray(pcd_affordance.colors),
                                         tolerance=0.00001)
 
-        current_position = pcd_affordance.get_center()
-        T[:3,3] = current_position
-
         source_pcd.transform(T)
         return T, self.getGoalOrientation(predictions[0][0])
 
@@ -127,18 +99,20 @@ class OrientationServer(object):
 
         print("received request...")
 
-        camClient = CameraClient()
-        pcd, _ = camClient.unpackPCD(msg_geometry = msg.pcd, msg_color = None)
-        uv = camClient.unpackUV(msg.uv)
+        print(msg)
 
-        affClient = AffordanceClient(connected = False)
-        masks = affClient.unpackMasks(msg.masks)
-        bbox = affClient.unpackBBox(msg.bbox)
+        camClient = CameraClient()
+        pcd_geometry, pcd_color = camClient.unpackPCD(msg_geometry = msg.pcd_geometry,
+                                                    msg_color = msg.pcd_color)
+
+        pcd_affordance = o3d.geometry.PointCloud()
+        pcd_affordance.points = o3d.utility.Vector3dVector(pcd_geometry)
+        pcd_affordance.colors = o3d.utility.Vector3dVector(pcd_color)
 
         T = 0
         G = 0
         if self.method == 0:
-            T, G = self.methodObservation(pcd, uv, masks[0], bbox[0])
+            T, G = self.methodObservation(pcd_affordance)
 
         np.set_printoptions(suppress=True)
         print(T)

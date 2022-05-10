@@ -317,3 +317,115 @@ def visualizeMasksInRGB(img, masks, colors = None):
     img = cv2.addWeighted(img, 1.0, full_mask, 0.7, 0)
 
     return img
+
+def createGripper(opening = 0.08, translation = np.zeros(3), rotation = np.identity(3)):
+    """ Creates a 3D representation of the Panda hand
+        Input:
+        opening:        - float, how open is the gripper given in meters.
+        depth:          - float, how deep should the gripper grasp, meters
+        translation     - np.array, (x, y, z) row or column vector
+        rotation        - np.array, (3x3) rotation matrix
+
+        Output:
+        parts    - list [o3d.geometry.PointCloud()], a list of open3d
+                            geometry
+    """
+
+    translation = translation.flatten()
+
+    finger_width = 0.02 # x-axis, in meters
+    finger_length = 0.02 # y-axis, in meters
+    finger_height = 0.045 # z-axis
+    finger_offset_z = -0.01
+
+    chasis_width = 0.03 # x-axis, in meters
+    chasis_length = 0.18 # y-axis
+    chasis_height = 0.12 # z-axis
+    chasis = create_mesh_box(chasis_width, chasis_length, chasis_height,
+                            dx = -chasis_width / 2, dy = -chasis_length / 2,
+                            dz = -chasis_height -0.035)
+
+    chasis_points = np.array(chasis.vertices)
+    chasis_points = np.dot(rotation, chasis_points.T).T + translation
+
+    chasis = o3d.geometry.PointCloud()
+    chasis.points = o3d.utility.Vector3dVector(chasis_points)
+
+    left_finger_points = np.array([[-chasis_width / 2.0, (-finger_width / 2) -(opening / 2), -finger_offset_z],
+                            [chasis_width / 2.0, (-finger_width / 2) -(opening / 2), -finger_offset_z],
+                            [-chasis_width / 2.0, (-finger_width / 2) -(opening / 2), finger_offset_z - finger_height],
+                            [chasis_width / 2.0, (-finger_width / 2) -(opening / 2), finger_offset_z - finger_height],
+
+                            [-chasis_width / 2.0, (finger_width / 2) -( opening / 2), -finger_offset_z],
+                            [chasis_width / 2.0, (finger_width / 2) -( opening / 2), -finger_offset_z],
+                            [-chasis_width / 2.0, (finger_width / 2) -( opening / 2), finger_offset_z - finger_height],
+                            [chasis_width / 2.0, (finger_width / 2) -( opening / 2), finger_offset_z - finger_height],
+                            ])
+
+    left_finger = o3d.geometry.PointCloud()
+    left_finger_points = np.dot(rotation, left_finger_points.T).T + translation
+    left_finger.points = o3d.utility.Vector3dVector(left_finger_points)
+
+    right_finger_points = np.array([[-chasis_width / 2.0, (finger_width / 2) + (opening / 2), -finger_offset_z],
+                            [chasis_width / 2.0, (finger_width / 2) + (opening / 2), -finger_offset_z],
+                            [-chasis_width / 2.0, (finger_width / 2) + (opening / 2), finger_offset_z - finger_height],
+                            [chasis_width / 2.0, (finger_width / 2) + (opening / 2), finger_offset_z - finger_height],
+
+                            [-chasis_width / 2.0, (-finger_width / 2) + ( opening / 2), -finger_offset_z],
+                            [chasis_width / 2.0, (-finger_width / 2) + ( opening / 2), -finger_offset_z],
+                            [-chasis_width / 2.0, (-finger_width / 2) + ( opening / 2), finger_offset_z - finger_height],
+                            [chasis_width / 2.0, (-finger_width / 2) + ( opening / 2), finger_offset_z - finger_height],
+                            ])
+
+    right_finger = o3d.geometry.PointCloud()
+    right_finger_points = np.dot(rotation, right_finger_points.T).T + translation
+    right_finger.points = o3d.utility.Vector3dVector(right_finger_points)
+
+    parts = []
+    parts.append(chasis)
+    parts.append(left_finger)
+    parts.append(right_finger)
+
+    return parts
+
+
+
+def visualizeGripper(parts, color = (1,0,0)):
+    """
+        Input:
+        parts       - list[o3d.geometry.PointCloud()]
+
+        Output:
+        mesh        - o3d.geometry.TriangleMesh()
+    """
+
+    vertices_chasis = np.asanyarray(parts[0].points)
+
+    triangles_chasis = np.array([[4,7,5],[4,6,7],[0,2,4],[2,6,4],
+                          [0,1,2],[1,3,2],[1,5,7],[1,7,3],
+                          [2,3,7],[2,7,6],[0,4,1],[1,4,5]])
+
+
+    vertices_left_finger = np.asanyarray(parts[1].points)
+    triangles_left_finger = np.array([[4,7,5],[4,6,7],[0,2,4],[2,6,4],
+                          [0,1,2],[1,3,2],[1,5,7],[1,7,3],
+                          [2,3,7],[2,7,6],[0,4,1],[1,4,5]])
+    triangles_left_finger += 8
+
+    vertices_right_finger = np.asanyarray(parts[2].points)
+    triangles_right_finger = np.array([[4,7,5],[4,6,7],[0,2,4],[2,6,4],
+                          [0,1,2],[1,3,2],[1,5,7],[1,7,3],
+                          [2,3,7],[2,7,6],[0,4,1],[1,4,5]])
+    triangles_right_finger += 16
+
+    vertices = np.concatenate([vertices_chasis, vertices_left_finger, vertices_right_finger], axis=0)
+    triangles = np.concatenate([triangles_chasis, triangles_left_finger, triangles_right_finger], axis=0)
+
+    hand = o3d.geometry.TriangleMesh()
+    hand.vertices = o3d.utility.Vector3dVector(vertices)
+    hand.triangles = o3d.utility.Vector3iVector(triangles)
+    colors = [color for i in range(vertices.shape[0])]
+    hand.vertex_colors = o3d.utility.Vector3dVector(colors)
+
+
+    return hand
