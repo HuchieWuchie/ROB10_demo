@@ -51,13 +51,21 @@ def planToNamed(name):
     response = service(msg)
     return response.plan
 
+def planFromPoseToPose(start_pose, goal_pose):
+
+    rospy.wait_for_service("/rob9/moveit/plan_from_pose_to_pose")
+    service = rospy.ServiceProxy("/rob9/moveit/plan_from_pose_to_pose", moveitPlanFromPoseToPoseSrv)
+
+    response = service(pose)
+    return response.success, response.plan
+
 def planToPose(pose):
 
     rospy.wait_for_service("/rob9/moveit/plan_to_pose")
     service = rospy.ServiceProxy("/rob9/moveit/plan_to_pose", moveitPlanToPoseSrv)
 
     response = service(pose)
-    return response.plan
+    return response.success, response.plan
 
 def getCurrentState():
 
