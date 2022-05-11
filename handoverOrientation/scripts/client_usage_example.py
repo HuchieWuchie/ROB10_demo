@@ -37,11 +37,30 @@ if __name__ == "__main__":
     geometry = np.asanyarray(pcd.points)
     img = cv2.imread(os.path.join(path, "img.png"))
 
+    cam = CameraClient()
+
+    cam.captureNewScene()
+    geometry, pcd_colors = cam.getPointCloudStatic()
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = o3d.utility.Vector3dVector(geometry)
+    pcd.colors = o3d.utility.Vector3dVector(pcd_colors)
+
+    uv = cam.getUvStatic()
+    img = cam.getRGB()
+
+    affClient = AffordanceClient()
+
+    affClient.start(GPU=True)
+    _ = affClient.run(img, CONF_THRESHOLD = 0.8)
+
+    masks, labels, scores, bboxs = affClient.getAffordanceResult()
+    masks = affClient.processMasks(masks, conf_threshold = 0, erode_kernel=(1,1))
+
     # Select object 5, ladle or 0 for knife
 
-    masks = masks[5]
-    labels = labels[5]
-    bbox = bboxs[5]
+    masks = masks[0]
+    labels = labels[0]
+    bbox = bboxs[0]
 
     # Visualize masks
     cv2.imshow("Masks", visualizeMasksInRGB(img, masks))
@@ -86,7 +105,7 @@ if __name__ == "__main__":
     print("computing orientation")
 
     ts = time.time()
-    rotClient.setSettings(1)
+    rotClient.setSettings(0)
     orientation, translation, goal = rotClient.getOrientation(pcd_affordance)
     te = time.time()
 

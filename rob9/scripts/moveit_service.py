@@ -1,15 +1,14 @@
 #!/usr/bin/env python
 import sys
+import copy
 
 import rospy
 import moveit_commander
 import moveit_msgs
-<<<<<<< HEAD
+import geometry_msgs
 from moveit_msgs.srv import GetPositionIK
-=======
-from moveit_msgs.msg import GetPositionIK, RobotTrajectory
+from moveit_msgs.msg import RobotTrajectory
 from std_msgs.msg import Bool
->>>>>>> c175c54cce599769f2679d104239817feddf84cb
 
 from rob9.srv import moveitMoveToNamedSrv, moveitMoveToNamedSrvResponse
 from rob9.srv import moveitPlanToNamedSrv, moveitPlanToNamedSrvResponse
@@ -47,7 +46,7 @@ def planToNamed(req):
 
     return resp
 
-def getStateRobotStateAtPose(pose_msg):
+def getRobotStateAtPose(pose_msg):
     """ Input:
         pose_msg            - geometry_msgs/Pose
 
@@ -74,22 +73,22 @@ def getStateRobotStateAtPose(pose_msg):
     rospy.wait_for_service('compute_ik')
     ik_calculator = rospy.ServiceProxy("compute_ik", GetPositionIK)
 
-    state = calculate_ik(request_msg)
+    state = ik_calculator(ik_request_msg)
     valid = False
     if state.error_code.val == 1:
         valid = True
 
-    return valid, state
+    return valid, state.solution
 
 def planFromPoseToPose(req):
 
-    print("Computing plan to given pose: ", req.pose)
+    print("Computing plan to given pose: ", req.goal_pose)
 
     start_pose = req.start_pose
-    start_pose_valid, start_state = getStateRobotStateAtPose(start_pose)
+    start_pose_valid, start_state = getRobotStateAtPose(start_pose)
 
     if not start_pose_valid:
-        response = moveitPlanToPoseSrvResponse()
+        response = moveitPlanFromPoseToPoseSrvResponse()
         response.plan = RobotTrajectory()
         response.success = Bool(False)
 
@@ -113,14 +112,16 @@ def planFromPoseToPose(req):
     rospy.wait_for_service('compute_ik')
     ik_calculator = rospy.ServiceProxy("compute_ik", GetPositionIK)
 
-    goal_state = calculate_ik(request_msg)
+    goal_state = ik_calculator(ik_request_msg)
 
     if goal_state.error_code.val != 1:
-        response = moveitPlanToPoseSrvResponse()
+        response = moveitPlanFromPoseToPoseSrvResponse()
         response.plan = RobotTrajectory()
         response.success = Bool(False)
 
         return response
+
+    print(goal_state)
 
     joint_states_at_goal = list(goal_state.solution.joint_state.position)
     joint_values_at_goal = copy.deepcopy(joint_states_at_goal[2:9])
@@ -128,7 +129,12 @@ def planFromPoseToPose(req):
     move_group.set_joint_value_target(joint_values_at_goal)
     plan = move_group.plan()
 
-    response = moveitPlanToPoseSrvResponse()
+    print(type(plan))
+
+    print("found plan ")
+    print(plan)
+
+    response = moveitPlanFromPoseToPoseSrvResponse()
     response.plan = plan
     response.success = Bool(True)
 
@@ -157,7 +163,7 @@ def planToPose(req):
     rospy.wait_for_service('compute_ik')
     ik_calculator = rospy.ServiceProxy("compute_ik", GetPositionIK)
 
-    goal_state = calculate_ik(request_msg)
+    goal_state = ik_calculator(ik_request_msg)
 
     if goal_state.error_code.val != 1:
 

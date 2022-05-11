@@ -8,7 +8,8 @@ class LocationClient(object):
     """docstring for locationClient."""
 
     def __init__(self):
-        rospy.init_node('scan_processing_example', anonymous=True)
+        pass
+        #rospy.init_node('location_service_client', anonymous=True)
 
     def getLocation(self):
 

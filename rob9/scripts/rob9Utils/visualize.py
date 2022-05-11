@@ -8,6 +8,8 @@ from rob9Utils.graspGroup import GraspGroup
 from rob9Utils.grasp import Grasp
 from rob9Utils.affordancetools import getPredictedAffordances, getAffordanceColors
 
+
+
 def visualizeGrasps6DOF(pointcloud, graspGroup, color = None):
     """ input:  pointcloud - open3d pointcloud
                 graspGroup - rob9Utils.graspGroup GraspGroup()

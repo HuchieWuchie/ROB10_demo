@@ -141,8 +141,10 @@ class GraspServer(object):
                 polar_value = polar_values[best_grasp_idx[0]]
                 azimuth_value = azimuth_values[best_grasp_idx[1]]
 
-                ee_rotation = np.array([math.pi + (math.pi * polar_value), 0, (math.pi *azimuth_value)])
-                rotEE = R.from_euler('XYZ', ee_rotation)
+                #ee_rotation = np.array([math.pi + (math.pi * polar_value), 0, (math.pi *azimuth_value)]) # franka
+                #ee_rotation = np.array([0, math.pi / 2, math.pi/2])
+                ee_rotation = np.array([0, math.pi / 2, 0])
+                rotEE = R.from_euler('ZYX', ee_rotation)
                 eeRotMat = rotEE.as_matrix()
 
                 d_count = 0

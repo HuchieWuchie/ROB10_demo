@@ -208,6 +208,7 @@ class OrientationServer(object):
                                         tolerance=0.00001)
 
         source_pcd.transform(T)
+        o3d.visualization.draw_geometries([pcd_affordance, source_pcd])
         return T, self.getGoalOrientation(predictions[0][0])
 
     def run(self, msg):

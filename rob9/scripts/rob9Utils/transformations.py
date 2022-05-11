@@ -4,11 +4,25 @@ import math
 
 import rospy
 import geometry_msgs
-from geometry_msgs.msg import PoseStamped, Pose, Quaternion, Vector3
+from geometry_msgs.msg import PoseStamped, Pose, Quaternion, Vector3, Transform
 from std_msgs.msg import String
 
 from rob9.srv import tf2TransformPoseStampedSrv, tf2TransformPoseStampedSrvResponse
 from rob9.srv import tf2TransformPathSrv, tf2TransformPathSrvResponse
+from rob9.srv import tf2GetTransformSrv, tf2GetTransformSrvResponse
+from rob9.srv import tf2VisualizeTransformSrv, tf2VisualizeTransformSrvResponse
+
+def visualizeTransform(transform, name):
+    """ Input:
+        transform           - geometry_msgs.Transform()
+        name                - string, name of transform
+    """
+
+    rospy.wait_for_service("/tf2/visualize_transform")
+    tf2Service = rospy.ServiceProxy("/tf2/visualize_transform", tf2VisualizeTransformSrv)
+
+    _ = tf2Service(transform, String(name))
+
 
 def transformToFrame(pose, newFrame, currentFrame = "ptu_camera_color_optical_frame"):
     """ input:  pose - geometry_msgs.PoseStamped()
@@ -64,6 +78,87 @@ def transformToFramePath(path, newFrame):
 
     return response
 
+def poseToTransform(pose):
+    """ Input:
+        pose                - array [x, y, z, qx, qy, qz, qw]
+
+        Output:
+        transform           - geometry_msgs.Transform()
+    """
+
+    transform = Transform()
+
+    transform.translation.x = pose[0]
+    transform.translation.y = pose[1]
+    transform.translation.z = pose[2]
+
+    transform.rotation.x = pose[3]
+    transform.rotation.y = pose[4]
+    transform.rotation.z = pose[5]
+    transform.rotation.w = pose[6]
+
+    return transform
+
+def poseMsgToTransformMsg(pose):
+    """ Input:
+        pose                - geometry_msgs.Pose()
+
+        Output:
+        transform           - geometry_msgs.Transform()
+    """
+
+    transform = Transform()
+
+    transform.translation.x = pose.position.x
+    transform.translation.y = pose.position.y
+    transform.translation.z = pose.position.z
+
+    transform.rotation.x = pose.orientation.x
+    transform.rotation.y = pose.orientation.y
+    transform.rotation.z = pose.orientation.z
+    transform.rotation.w = pose.orientation.w
+
+    return transform
+
+
+def getTransform(source_frame, target_frame):
+    """ input:
+        source_frame    - string
+        target_frame    - string
+
+        output:
+        T               - 4x4 homogeneous transformation, np.array()
+        transl          - x, y, z translation, np.array(), shape (3)
+        rot             - 3x3 rotation matrix, np.array(), shape (3, 3)
+    """
+
+    rospy.wait_for_service("/tf2/get_transform")
+    tf2Service = rospy.ServiceProxy("/tf2/get_transform", tf2GetTransformSrv)
+
+    source_msg = String()
+    source_msg.data = source_frame
+    target_msg = String()
+    target_msg.data = target_frame
+
+    response = tf2Service(source_msg, target_msg)
+
+    print(response)
+    transl = np.zeros((3, 1))
+    transl[0] = response.transform.translation.x
+    transl[1] = response.transform.translation.y
+    transl[2] = response.transform.translation.z
+
+    msg_quat = response.transform.rotation
+    quat = [msg_quat.x, msg_quat.y, msg_quat.z, msg_quat.w]
+    rot = quatToRot(quat)
+
+    T = np.identity(4)
+    T[0:3, 0:3] = rot
+    T[0, 3] = response.transform.translation.x
+    T[1, 3] = response.transform.translation.y
+    T[2, 3] = response.transform.translation.z
+
+    return T, transl.flatten(), rot
 
 def quatToRot(q):
     """ input:  -   q, array [x, y, z, w]
@@ -183,10 +278,37 @@ def quaternionFromRotation(R):
     w, V = np.linalg.eigh(K)
     q = V[[3, 0, 1, 2], np.argmax(w)]
     if q[0] < 0.0:
-        numpy.negative(q, q)
+        np.negative(q, q)
 
     q = np.flip(q) # reverse the array to get [x, y, z, w]
     return q
+
+def poseToMatrix(pose):
+    """ Input:
+        pose         - array [x, y, z, qx, qy, qz, qw]
+
+        Output:
+        T           - np.array, shape (4,4) homogeneous transformation matrix
+    """
+
+    position = np.zeros((3))
+    position[0] = pose[0]
+    position[1] = pose[1]
+    position[2] = pose[2]
+
+    quaternion = np.zeros(4)
+    quaternion[0] = pose[3]
+    quaternion[1] = pose[4]
+    quaternion[2] = pose[5]
+    quaternion[3] = pose[6]
+
+    rotMat = quatToRot(quaternion)
+
+    T = np.identity(4)
+    T[:3,:3] = rotMat
+    T[:3,3] = position
+
+    return T
 
 def poseStampedToMatrix(msg):
     """ Input:
@@ -196,10 +318,10 @@ def poseStampedToMatrix(msg):
         T           - np.array, shape (4,4) homogeneous transformation matrix
     """
 
-    position = np.zeros((3,1))
-    position[0, 0] = msg.pose.position.x
-    position[0, 1] = msg.pose.position.y
-    position[0, 2] = msg.pose.position.z
+    position = np.zeros((3))
+    position[0] = msg.pose.position.x
+    position[1] = msg.pose.position.y
+    position[2] = msg.pose.position.z
 
     quaternion = np.zeros(4)
     quaternion[0] = msg.pose.orientation.x
