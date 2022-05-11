@@ -83,288 +83,310 @@ def wait():
         pass
 
 if __name__ == '__main__':
-    global grasps_affordance, img, affClient, pcd, masks, bboxs
-    demo = std_msgs.msg.Bool()
-    demo.data = False
-    if len(sys.argv) > 1:
-        if sys.argv[1] == 'demo':
-            demo.data = True
-            print("Demo = True")
-        else:
-            print("Invalid input argument")
-            exit()
+    global grasps_affordance, img, affClient, pcd, masks, bboxs, req_aff_id, req_obj_id, state
 
     print("Init")
     rospy.init_node('moveit_subscriber', anonymous=True)
 
-    set_ee = True
-    if not rob9Utils.iiwa.setEndpointFrame():
-        set_ee = False
-    print("STATUS end point frame was changed: ", set_ee)
-
-    set_PTP_speed_limit = True
-    if not rob9Utils.iiwa.setPTPJointSpeedLimits():
-        set_PTP_speed_limit = False
-    print("STATUS PTP joint speed limits was changed: ", set_PTP_speed_limit)
-
-    set_PTP_cart_speed_limit = True
-    if not rob9Utils.iiwa.setPTPCartesianSpeedLimits():
-        set_PTP_cart_speed_limit = False
-    print("STATUS PTP cartesian speed limits was changed: ", set_PTP_cart_speed_limit)
-
-    #rospy.Subscriber('tool_id', Int8, callback)
-    rospy.Subscriber('objects_affordances_id', Int32MultiArray, callback )
-    gripper_pub = rospy.Publisher('iiwa/gripper_controller', Int8, queue_size=10, latch=True)
-    pub_grasp = rospy.Publisher('iiwa/pose_to_reach', PoseStamped, queue_size=10)
-    pub_waypoint = rospy.Publisher('iiwa/pose_to_reach_waypoint', PoseStamped, queue_size=10)
-    display_trajectory_publisher = rospy.Publisher('iiwa/move_group/display_planned_path',
-                                                   moveit_msgs.msg.DisplayTrajectory,
-                                                   queue_size=20)
-    # DO NOT REMOVE THIS SLEEP, it allows gripper_pub to establish connection to the topic
-    rospy.sleep(0.1)
-    rospy.sleep(2)
-
-    vid_capture = cv2.VideoCapture(0)
-
-    reset_gripper_msg = std_msgs.msg.Int8()
-    reset_gripper_msg.data = 0
-    activate_gripper_msg = std_msgs.msg.Int8()
-    activate_gripper_msg.data = 1
-    close_gripper_msg = std_msgs.msg.Int8()
-    close_gripper_msg = 2
-    open_gripper_msg = std_msgs.msg.Int8()
-    open_gripper_msg.data = 3
-    basic_gripper_msg = std_msgs.msg.Int8()
-    basic_gripper_msg.data = 4
-    pinch_gripper_msg = std_msgs.msg.Int8()
-    pinch_gripper_msg.data = 5
-
-    gripper_pub.publish(reset_gripper_msg)
-    gripper_pub.publish(activate_gripper_msg)
-    gripper_pub.publish(open_gripper_msg)
-    gripper_pub.publish(pinch_gripper_msg)
-    rob9Utils.iiwa.execute_spline_trajectory(moveit.planToNamed("ready"))
-
-    print("Services init")
-
-    print("Camera is capturing new scene")
-
-    cam = CameraClient()
-    cam.captureNewScene()
-    cloud, cloudColor = cam.getPointCloudStatic()
-    pcd = o3d.geometry.PointCloud()
-    pcd.points = o3d.utility.Vector3dVector(cloud)
-    pcd.colors = o3d.utility.Vector3dVector(cloudColor)
-
-    cloud_uv = cam.getUvStatic()
-    img = cam.getRGB()
-
-    width = 1280
-    height = 960
-    h_divisions = 4
-    w_divisions = 2
-    viz_h_unit = int(height / h_divisions)
-    viz_w_unit = viz_h_unit
-
-	print("Segmenting affordance maps")
-    # Run affordance analyzer
-    affClient = AffordanceClient()
-
-    affClient.start(GPU=True)
-    _ = affClient.run(img, CONF_THRESHOLD = 0.5)
-
-    masks, labels, scores, bboxs = affClient.getAffordanceResult()
-
-    masks = affClient.processMasks(masks, conf_threshold = 0, erode_kernel=(1,1))
-
-	req_obj_id = -1
-	req_aff_id = -1
-
-	while req_aff_id == -1 and req_obj_id == -1:
-		wait()
-
-	num_occurences = np.where(labels == req_obj_id)[0].shape[0]
-	if num_occurences == 0:
-		req_obj_id = -1
-		req_obj_id = -1
-
-	obj_inst = np.where(labels == req_obj_id)[0][0]
-    obj_inst_masks = masks[obj_inst]
-    obj_inst_labels = labels[obj_inst]
-    obj_inst_bbox = bboxs[obj_inst]
-
-	# Post process affordance predictions and compute point cloud affordance mask
-
-    affordances_in_object = getPredictedAffordances(masks = obj_inst_masks, bbox = obj_inst_bbox)
-    print("predicted affordances", affordances_in_object)
+	state = 1 # start at setup phase
+
+	while True:
+
+		if state == 1:
+			# setup phase
+
+		    set_ee = True
+		    if not rob9Utils.iiwa.setEndpointFrame():
+		        set_ee = False
+		    print("STATUS end point frame was changed: ", set_ee)
+
+		    set_PTP_speed_limit = True
+		    if not rob9Utils.iiwa.setPTPJointSpeedLimits():
+		        set_PTP_speed_limit = False
+		    print("STATUS PTP joint speed limits was changed: ", set_PTP_speed_limit)
+
+		    set_PTP_cart_speed_limit = True
+		    if not rob9Utils.iiwa.setPTPCartesianSpeedLimits():
+		        set_PTP_cart_speed_limit = False
+		    print("STATUS PTP cartesian speed limits was changed: ", set_PTP_cart_speed_limit)
+
+		    #rospy.Subscriber('tool_id', Int8, callback)
+		    rospy.Subscriber('objects_affordances_id', Int32MultiArray, callback )
+		    gripper_pub = rospy.Publisher('iiwa/gripper_controller', Int8, queue_size=10, latch=True)
+		    pub_grasp = rospy.Publisher('iiwa/pose_to_reach', PoseStamped, queue_size=10)
+		    pub_waypoint = rospy.Publisher('iiwa/pose_to_reach_waypoint', PoseStamped, queue_size=10)
+		    display_trajectory_publisher = rospy.Publisher('iiwa/move_group/display_planned_path',
+		                                                   moveit_msgs.msg.DisplayTrajectory,
+		                                                   queue_size=20)
+		    # DO NOT REMOVE THIS SLEEP, it allows gripper_pub to establish connection to the topic
+		    rospy.sleep(0.1)
+		    rospy.sleep(2)
+
+		    vid_capture = cv2.VideoCapture(0)
+
+		    reset_gripper_msg = std_msgs.msg.Int8()
+		    reset_gripper_msg.data = 0
+		    activate_gripper_msg = std_msgs.msg.Int8()
+		    activate_gripper_msg.data = 1
+		    close_gripper_msg = std_msgs.msg.Int8()
+		    close_gripper_msg = 2
+		    open_gripper_msg = std_msgs.msg.Int8()
+		    open_gripper_msg.data = 3
+		    basic_gripper_msg = std_msgs.msg.Int8()
+		    basic_gripper_msg.data = 4
+		    pinch_gripper_msg = std_msgs.msg.Int8()
+		    pinch_gripper_msg.data = 5
+
+		    gripper_pub.publish(reset_gripper_msg)
+		    gripper_pub.publish(activate_gripper_msg)
+		    gripper_pub.publish(open_gripper_msg)
+		    gripper_pub.publish(pinch_gripper_msg)
+		    rob9Utils.iiwa.execute_spline_trajectory(moveit.planToNamed("ready"))
+
+			req_obj_id = -1
+			req_aff_id = -1
+
+		    print("Services init")
+
+			state = 2
+
+		elif state == 2:
+			# Capture sensor information
+
+		    print("Camera is capturing new scene")
+
+		    cam = CameraClient()
+		    cam.captureNewScene()
+		    cloud, cloudColor = cam.getPointCloudStatic()
+		    pcd = o3d.geometry.PointCloud()
+		    pcd.points = o3d.utility.Vector3dVector(cloud)
+		    pcd.colors = o3d.utility.Vector3dVector(cloudColor)
+
+		    cloud_uv = cam.getUvStatic()
+		    img = cam.getRGB()
 
-    for aff in affordances_in_object:
+			state = 3
 
-        masks = erodeMask(affordance_id = req_aff_id, masks = obj_inst_masks,
-                        kernel = np.ones((3,3)))
-        contours = getAffordanceContours(bbox = obj_inst_bbox, affordance_id = req_aff_id,
-                                        masks = obj_inst_masks)
-        if len(contours) > 0:
-            contours = keepLargestContour(contours)
-            hulls = convexHullFromContours(contours)
+		elif state == 3:
+			# Analyze affordance
 
-            h, w = obj_inst_masks.shape[-2], obj_inst_masks.shape[-1]
-            if obj_inst_bbox is not None:
-                h = int(obj_inst_bbox[3] - obj_inst_bbox[1])
-                w = int(obj_inst_bbox[2] - obj_inst_bbox[0])
+			print("Segmenting affordance maps")
+		    affClient = AffordanceClient()
 
-            aff_mask = maskFromConvexHull(h, w, hulls = hulls)
-            _, keep = thresholdMaskBySize(aff_mask, threshold = 0.05)
-            if keep == False:
-                aff_mask[:, :] = False
+		    affClient.start(GPU=True)
+		    _ = affClient.run(img, CONF_THRESHOLD = 0.5)
 
-            if bbox is not None:
-                obj_inst_masks[aff, bbox[1]:bbox[3], bbox[0]:bbox[2]] = aff_mask
-            else:
-                obj_inst_masks[aff, :, :] = aff_mask
+		    masks, labels, scores, bboxs = affClient.getAffordanceResult()
+		    masks = affClient.processMasks(masks, conf_threshold = 0, erode_kernel=(1,1))
 
-    obj_inst_masks = removeOverlapMask(masks = obj_inst_masks)
-	pcd_affordance = getObjectAffordancePointCloud(pcd, obj_inst_masks, uvs = uv)
+			state = 4
 
-	# transform point cloud into world coordinate frame
-    # below is a transformation used during capture of sample data
+		elif state == 4:
+			while req_aff_id == -1 and req_obj_id == -1:
+				wait()
+			state = 5
 
-    cam2WorldTransform = np.array([-(math.pi/2) - 1.0995574287564276, 0, -(math.pi)-(math.pi/4)+1.2220795422464295])
-    rotCam2World = R.from_euler('xyz', cam2WorldTransform)
-    rotMatCam2World = rotCam2World.as_matrix()
+		elif state == 5:
+			# Check user input
+			num_occurences = np.where(labels == req_obj_id)[0].shape[0]
+			if num_occurences == 0:
+				req_obj_id = -1
+				req_obj_id = -1
 
-    points = np.dot(rotMatCam2World, np.asanyarray(pcd.points).T).T
-    pcd.points = o3d.utility.Vector3dVector(points)
+			state = 6
 
-    # Compute a downsampled version of the point cloud for collision checking
-    # downsampling speeds up computation
-    pcd_downsample = pcd.voxel_down_sample(voxel_size=0.005)
+		elif state == 6:
+			# post process affordance segmentation maps
 
-    # Select affordance mask to compute grasps for
-    observed_affordances = getPredictedAffordances(obj_inst_masks)
+			obj_inst = np.where(labels == req_obj_id)[0][0]
+		    obj_inst_masks = masks[obj_inst]
+		    obj_inst_labels = labels[obj_inst]
+		    obj_inst_bbox = bboxs[obj_inst]
 
-    success, sampled_grasp_points = getPointCloudAffordanceMask(affordance_id = req_aff_id,
-                                    points = points, uvs = uv, masks = obj_inst_masks)
+			# Post process affordance predictions and compute point cloud affordance mask
 
-	if success:
+		    affordances_in_object = getPredictedAffordances(masks = obj_inst_masks, bbox = obj_inst_bbox)
+		    print("predicted affordances", affordances_in_object)
 
-        # run the algorithm
-		grasp_client = GraspingGeneratorClient()
-        grasp_group = grasp_client.run(sampled_grasp_points, pcd_downsample,
-                                    "world", req_obj_id, req_aff_id, obj_inst)
+		    for aff in affordances_in_object:
 
-        print("I got ", len(grasp_group.grasps), " grasps")
+		        masks = erodeMask(affordance_id = req_aff_id, masks = obj_inst_masks,
+		                        kernel = np.ones((3,3)))
+		        contours = getAffordanceContours(bbox = obj_inst_bbox, affordance_id = req_aff_id,
+		                                        masks = obj_inst_masks)
+		        if len(contours) > 0:
+		            contours = keepLargestContour(contours)
+		            hulls = convexHullFromContours(contours)
 
-        grasp_group.thresholdByScore(0.3)
-        grasp_group.sortByScore()
+		            h, w = obj_inst_masks.shape[-2], obj_inst_masks.shape[-1]
+		            if obj_inst_bbox is not None:
+		                h = int(obj_inst_bbox[3] - obj_inst_bbox[1])
+		                w = int(obj_inst_bbox[2] - obj_inst_bbox[0])
 
-		for grasp in grasp_group:
+		            aff_mask = maskFromConvexHull(h, w, hulls = hulls)
+		            _, keep = thresholdMaskBySize(aff_mask, threshold = 0.05)
+		            if keep == False:
+		                aff_mask[:, :] = False
 
-			waypoint = computeWaypoints(grasp, offset = 0.1)
-			waypoint_pose_msg = waypoint.toPoseMsg()
+		            if bbox is not None:
+		                obj_inst_masks[aff, bbox[1]:bbox[3], bbox[0]:bbox[2]] = aff_mask
+		            else:
+		                obj_inst_masks[aff, :, :] = aff_mask
 
-			success_waypoint, plan_waypoint = moveit.planToPose(waypoint_msg)
-			if success_waypoint:
-				grasp_msg = grasp.toPoseMsg()
-				success_grasp, plan_grasp = moveit.planFromPoseToPose(waypoint_msg, rasp_msg)
+		    obj_inst_masks = removeOverlapMask(masks = obj_inst_masks)
+			pcd_affordance = getObjectAffordancePointCloud(pcd, obj_inst_masks, uvs = uv)
+			state = 7
 
-				if success_grasp:
+		elif state == 7
+			# transform point cloud into world coordinate frame
+		    # below is a transformation used during capture of sample data
 
-					pub_waypoint.publish(waypoint.toPoseStampedMsg())
-					pub_grasp.publish(grasp.toPoseStampedMsg())
+		    cam2WorldTransform = np.array([-(math.pi/2) - 1.0995574287564276, 0, -(math.pi)-(math.pi/4)+1.2220795422464295])
+		    rotCam2World = R.from_euler('xyz', cam2WorldTransform)
+		    rotMatCam2World = rotCam2World.as_matrix()
 
-					# computing goal pose of object in camera frame and
-					# current pose of object in camera frame
+		    points = np.dot(rotMatCam2World, np.asanyarray(pcd.points).T).T
+		    pcd.points = o3d.utility.Vector3dVector(points)
 
-					geometry = np.asanyarray(pcd.points)
-					rotClient = OrientationClient()
-					current_orientation, current_position, goal_orientation = rotClient.getOrientation(pcd_affordance) # we discard translation
+		    # Compute a downsampled version of the point cloud for collision checking
+		    # downsampling speeds up computation
+		    pcd_downsample = pcd.voxel_down_sample(voxel_size=0.005)
 
-					# transform current pose into world frame
-					curr_rot_quat = transform.quaternionFromRotation(current_orientation)
-					curr_pose = np.hstack((current_position.flatten(), curr_rot_quat))
-					curr_pose_world = transform.transformToFrame(curr_pose, "world", "ptu_camera_color_optical_frame")
+			state = 8
 
-					## Get goal position using linescan service
+		elif state == 8
 
-					goal_rot_quat = transform.quaternionFromRotation(goal_orientation)
+		    # Select affordance mask to compute grasps for
+		    observed_affordances = getPredictedAffordances(obj_inst_masks)
 
-					locClient = LocationClient()
-				    goal_location = locClient.getLocation()
-					goal_location_giver = transform.transformToFrame(curr_pose, "giver", "world")
-					goal_pose_giver = np.hstack((goal_location.flatten(), goal_rot_quat))
+		    success, sampled_grasp_points = getPointCloudAffordanceMask(affordance_id = req_aff_id,
+		                                    points = points, uvs = uv, masks = obj_inst_masks)
 
-					goal_pose_world = transform.transformToFrame(goal_pose_giver, "world", "giver")
+			if success:
 
-					grasp_pose_world = goal_msg
+				# computing goal pose of object in world frame and
+				# current pose of object in world frame
 
-					# Compute the homegenous 4x4 transformation matrices
+				rotClient = OrientationClient()
+				current_orientation, current_position, goal_orientation = rotClient.getOrientation(pcd_affordance) # we discard translation
 
-					world_grasp_T = poseStampedToMatrix(grasp_pose_world)
-					world_centroid_T = poseStampedToMatrix(curr_pose_world)
-					world_centroid_T_goal = poseStampedToMatrix(goal_pose_world)
+				curr_rot_quat = transform.quaternionFromRotation(current_orientation)
+				curr_pose_world = np.hstack((current_position.flatten(), curr_rot_quat))
 
-					# Compute an end effector pose that properly orients the grasped tool
+		        # run the algorithm
+				grasp_client = GraspingGeneratorClient()
+		        grasp_group = grasp_client.run(sampled_grasp_points, pcd_downsample,
+		                                    "world", req_obj_id, req_aff_id, obj_inst)
 
-				    grasp_world_T = np.linalg.inv(world_grasp_T)
-				    grasp_centroid_T = np.matmul(grasp_world_T, world_centroid_T)
+		        print("I got ", len(grasp_group.grasps), " grasps")
 
-				    centroid_grasp_T = np.linalg.inv(grasp_centroid_T)
-				    world_grasp_T_goal = np.matmul(world_centroid_T_goal, centroid_grasp_T)
-				    goal_q = quaternion_from_matrix(world_grasp_T_goal)
+		        grasp_group.thresholdByScore(0.3)
+		        grasp_group.sortByScore()
 
-				    world_centroid_T_test = np.matmul(world_grasp_T, grasp_centroid_T)
-				    world_centroid_T_goal_test = np.matmul(world_grasp_T_goal, grasp_centroid_T)
+				for grasp in grasp_group:
 
-					# Create poseStamped ros message
+					waypoint = computeWaypoint(grasp, offset = 0.1)
+					waypoint_pose_msg = waypoint.toPoseMsg()
 
-					ee_goal_msg = geometry_msgs.msg.PoseStamped()
-				    ee_goal_msg.header.frame_id = "world"
-				    ee_goal_msg.header.stamp = rospy.Time.now()
+					plan_found_waypoint, plan_waypoint = moveit.planToPose(waypoint_msg)
+					if plan_found_waypoint:
+						grasp_msg = grasp.toPoseMsg()
+						plan_found_waypoint_to_grasp, plan_grasp = moveit.planFromPoseToPose(waypoint_msg, rasp_msg)
 
-					ee_pose = Pose()
-					ee_pose.position.x = world_grasp_T_goal[0,3]
-					ee_pose.position.y = world_grasp_T_goal[1,3]
-					ee_pose.position.z = world_grasp_T_goal[2,3]
+						if plan_found_waypoint_to_grasp:
 
-					ee_pose.orientation.x = goal_q[0]
-					ee_pose.orientation.y = goal_q[1]
-					ee_pose.orientation.z = goal_q[2]
-					ee_pose.orientation.w = goal_q[3]
+							pub_waypoint.publish(waypoint.toPoseStampedMsg())
+							pub_grasp.publish(grasp.toPoseStampedMsg())
 
-					ee_goal_msg.pose = ee_pose
+							## Get goal position using linescan service
 
-					# call planToPose with ee_goal_msg
-					success_handover, plan_handover = moveit.planToPose(ee_goal_msg)
+							goal_rot_quat = transform.quaternionFromRotation(goal_orientation)
 
-					if success_handover:
+							locClient = LocationClient()
+							goal_location = locClient.getLocation()
+							goal_location_giver = transform.transformToFrame(curr_pose, "giver", "world")
+							goal_pose_giver = np.hstack((goal_location.flatten(), goal_rot_quat))
 
-				        rob9Utils.iiwa.execute_spline_trajectory(plan_waypoint)
-						rospy.sleep(1)
+							goal_pose_world = transform.transformToFrame(goal_pose_giver, "world", "giver")
 
-						rob9Utils.iiwa.execute_spline_trajectory(plan_grasp)
-						rospy.sleep(1)
+							# Compute the homegenous 4x4 transformation matrices
 
-						gripper_pub.publish(close_gripper_msg)
-						rospy.sleep(1)
+							world_grasp_T = poseStampedToMatrix(grasp_pose_world)
+							world_centroid_T = poseStampedToMatrix(curr_pose_world)
+							world_centroid_T_goal = poseStampedToMatrix(goal_pose_world)
 
-						print("I have grasped!")
-						#input("Press Enter when you are ready to move the robot back to the ready pose") # outcommented by Albert Wed 23 March 09:06
+							# Compute an end effector pose that properly orients the grasped tool
 
-					    rob9Utils.iiwa.execute_spline_trajectory(moveit.planToNamed("ready"))
+						    grasp_world_T = np.linalg.inv(world_grasp_T)
+						    grasp_centroid_T = np.matmul(grasp_world_T, world_centroid_T)
 
-						# Execute plan to handover pose
-						rob9Utils.iiwa.execute_spline_trajectory(plan_handover)
-					    rospy.sleep(2)
-					    #input("Press Enter when you are ready to move the robot back to the ready pose")
+						    centroid_grasp_T = np.linalg.inv(grasp_centroid_T)
+						    world_grasp_T_goal = np.matmul(world_centroid_T_goal, centroid_grasp_T)
+						    goal_q = quaternion_from_matrix(world_grasp_T_goal)
 
-					    gripper_pub.publish(open_gripper_msg)
-					    rospy.sleep(2)
-					    rob9Utils.iiwa.execute_spline_trajectory(moveit.planToNamed("ready"))
-						break
+						    world_centroid_T_test = np.matmul(world_grasp_T, grasp_centroid_T)
+						    world_centroid_T_goal_test = np.matmul(world_grasp_T_goal, grasp_centroid_T)
 
-	req_aff_id = -1
-	req_obj_id = -1
+							# Create poseStamped ros message
+
+							ee_goal_msg = geometry_msgs.msg.PoseStamped()
+						    ee_goal_msg.header.frame_id = "world"
+						    ee_goal_msg.header.stamp = rospy.Time.now()
+
+							ee_pose = Pose()
+							ee_pose.position.x = world_grasp_T_goal[0,3]
+							ee_pose.position.y = world_grasp_T_goal[1,3]
+							ee_pose.position.z = world_grasp_T_goal[2,3]
+
+							ee_pose.orientation.x = goal_q[0]
+							ee_pose.orientation.y = goal_q[1]
+							ee_pose.orientation.z = goal_q[2]
+							ee_pose.orientation.w = goal_q[3]
+
+							ee_goal_msg.pose = ee_pose
+
+							# call planToPose with ee_goal_msg
+							plan_found_handover, plan_handover = moveit.planToPose(ee_goal_msg)
+
+							if plan_found_handover:
+
+						        rob9Utils.iiwa.execute_spline_trajectory(plan_waypoint)
+								rospy.sleep(1)
+
+								rob9Utils.iiwa.execute_spline_trajectory(plan_grasp)
+								rospy.sleep(1)
+
+								gripper_pub.publish(close_gripper_msg)
+								rospy.sleep(1)
+
+								print("I have grasped!")
+								#input("Press Enter when you are ready to move the robot back to the ready pose") # outcommented by Albert Wed 23 March 09:06
+
+							    rob9Utils.iiwa.execute_spline_trajectory(moveit.planToNamed("ready"))
+
+								# Execute plan to handover pose
+								rob9Utils.iiwa.execute_spline_trajectory(plan_handover)
+							    rospy.sleep(2)
+							    #input("Press Enter when you are ready to move the robot back to the ready pose")
+
+							    gripper_pub.publish(open_gripper_msg)
+							    rospy.sleep(2)
+							    rob9Utils.iiwa.execute_spline_trajectory(moveit.planToNamed("ready"))
+								break
+
+			state = 9
+
+		elif state == 9:
+			# restart
+			req_aff_id = -1
+			req_obj_id = -1
+
+			state = 2
+
+		try:
+	        rospy.spin()
+	    except rospy.ROSInterruptException:
+	        pass
 	#rotMat = grasp.orientation.getRotationMatrix()
     #translation = grasp.position.getVector()
 
@@ -380,8 +402,3 @@ if __name__ == '__main__':
 
     #vis_grasps = visualizeGrasps6DOF(pcd, grasp_group)
     #o3d.visualization.draw_geometries([pcd, *vis_grasps, vis_gripper])
-
-    try:
-        rospy.spin()
-    except rospy.ROSInterruptException:
-        pass
