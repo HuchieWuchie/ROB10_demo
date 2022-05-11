@@ -4,7 +4,7 @@ import sys
 import rospy
 import moveit_commander
 import moveit_msgs
-from moveit_msgs.msg import GetPositionIK
+from moveit_msgs.srv import GetPositionIK
 
 from rob9.srv import moveitMoveToNamedSrv, moveitMoveToNamedSrvResponse
 from rob9.srv import moveitPlanToNamedSrv, moveitPlanToNamedSrvResponse

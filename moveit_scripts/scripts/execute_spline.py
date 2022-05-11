@@ -108,16 +108,16 @@ def send_trajectory_to_rviz(plan):
 
 
 def callback(msg):
-    global resp_trajectories, grasps_affordance, pcd, masks, uv, bboxs
+    global resp_trajectories, grasps_affordance, pcd, masks, cloud_uv, bboxs
 
-	id = msg.data[0]
+    id = msg.data[0]
     requested_affordance_id = msg.data[1]
 
     affordance_ids = [1, 2, 3, 4, 5, 6, 7, 8, 9]
 
     # Select grasps of objects with correct affordance
     graspObj = GraspGroup(grasps = copy.deepcopy(grasps_affordance.getgraspsByTool(id = id)))
-    graspAffordance_tool = GraspGroup(grasps = copy.deepcopy(graspObj.getgraspsByAffordanceLabel(label = requested_affordance_id)))
+    grasps_affordance_tool = GraspGroup(grasps = copy.deepcopy(graspObj.getgraspsByAffordanceLabel(label = requested_affordance_id)))
 
 	# Compute waypoints for each grasp, could be a for loop instead with a break statement
     grasp_waypoints_path = computeWaypoints(grasps_affordance_tool, offset = 0.1)
@@ -169,39 +169,39 @@ def callback(msg):
         #input("Press Enter when you are ready to move the robot back to the ready pose") # outcommented by Albert Wed 23 March 09:06
     rob9Utils.iiwa.execute_spline_trajectory(moveit.planToNamed("ready"))
 
-	# computing goal pose of object in camera frame and
-	# current pose of object in camera frame
-	## 	  - Use ICP to get current goal orientation and position
+    # computing goal pose of object in camera frame and
+    # current pose of object in camera frame
+    ## 	  - Use ICP to get current goal orientation and position
 
-	geometry = np.asanyarray(pcd.points)
-	rotClient = OrientationClient()
-	current_orientation, current_position, goal_orientation = rotClient.getOrientation(geometry, uv, masks, bboxs) # we discard translation
+    geometry = np.asanyarray(pcd.points)
+    rotClient = OrientationClient()
+    current_orientation, current_position, goal_orientation = rotClient.getOrientation(geometry, cloud_uv, masks[id], bboxs[id]) # we discard translation
 
-	# transform current pose into world frame
-	curr_rot_quat = transform.quaternionFromRotation(current_orientation)
-	curr_pose = np.hstack((current_position.flatten(), curr_rot_quat))
-	curr_pose_world = transform.transformToFrame(curr_pose, "world", "ptu_camera_color_optical_frame")
+    # transform current pose into world frame
+    curr_rot_quat = transform.quaternionFromRotation(current_orientation)
+    curr_pose = np.hstack((current_position.flatten(), curr_rot_quat))
+    curr_pose_world = transform.transformToFrame(curr_pose, "world", "ptu_camera_color_optical_frame")
 
-	## Get goal position using linescan service
+    ## Get goal position using linescan service
 
-	goal_rot_quat = transform.quaternionFromRotation(goal_orientation)
+    goal_rot_quat = transform.quaternionFromRotation(goal_orientation)
 
-	locClient = LocationClient()
+    locClient = LocationClient()
     goal_location = locClient.getLocation()
-	goal_location_giver = transform.transformToFrame(curr_pose, "giver", "world")
-	goal_pose_giver = np.hstack((goal_location.flatten(), goal_rot_quat))
+    goal_location_giver = transform.transformToFrame(curr_pose, "giver", "world")
+    goal_pose_giver = np.hstack((goal_location.flatten(), goal_rot_quat))
 
-	goal_pose_world = transform.transformToFrame(goal_pose_giver, "world", "giver")
+    goal_pose_world = transform.transformToFrame(goal_pose_giver, "world", "giver")
 
-	grasp_pose_world = goal_msg
+    grasp_pose_world = goal_msg
 
-	# Compute the homegenous 4x4 transformation matrices
+    # Compute the homegenous 4x4 transformation matrices
 
-	world_grasp_T = poseStampedToMatrix(grasp_pose_world)
-	world_centroid_T = poseStampedToMatrix(curr_pose_world)
-	world_centroid_T_goal = poseStampedToMatrix(goal_pose_world)
+    world_grasp_T = poseStampedToMatrix(grasp_pose_world)
+    world_centroid_T = poseStampedToMatrix(curr_pose_world)
+    world_centroid_T_goal = poseStampedToMatrix(goal_pose_world)
 
-	# Compute an end effector pose that properly orients the grasped tool
+    # Compute an end effector pose that properly orients the grasped tool
 
     grasp_world_T = np.linalg.inv(world_grasp_T)
     grasp_centroid_T = np.matmul(grasp_world_T, world_centroid_T)
@@ -213,29 +213,29 @@ def callback(msg):
     world_centroid_T_test = np.matmul(world_grasp_T, grasp_centroid_T)
     world_centroid_T_goal_test = np.matmul(world_grasp_T_goal, grasp_centroid_T)
 
-	# Create poseStamped ros message
+    # Create poseStamped ros message
 
-	ee_goal_msg = geometry_msgs.msg.PoseStamped()
+    ee_goal_msg = geometry_msgs.msg.PoseStamped()
     ee_goal_msg.header.frame_id = "world"
     ee_goal_msg.header.stamp = rospy.Time.now()
 
-	ee_pose = Pose()
-	ee_pose.position.x = world_grasp_T_goal[0,3]
-	ee_pose.position.y = world_grasp_T_goal[1,3]
-	ee_pose.position.z = world_grasp_T_goal[2,3]
+    ee_pose = Pose()
+    ee_pose.position.x = world_grasp_T_goal[0,3]
+    ee_pose.position.y = world_grasp_T_goal[1,3]
+    ee_pose.position.z = world_grasp_T_goal[2,3]
 
-	ee_pose.orientatoin.x = goal_q[0]
-	ee_pose.orientatoin.y = goal_q[1]
-	ee_pose.orientatoin.z = goal_q[2]
-	ee_pose.orientatoin.w = goal_q[3]
+    ee_pose.orientatoin.x = goal_q[0]
+    ee_pose.orientatoin.y = goal_q[1]
+    ee_pose.orientatoin.z = goal_q[2]
+    ee_pose.orientatoin.w = goal_q[3]
 
-	ee_goal_msg.pose = ee_pose
+    ee_goal_msg.pose = ee_pose
 
-	# call planToPose with ee_goal_msg
-	ee_plan = moveit.planToPose(ee_goal_msg)
+    # call planToPose with ee_goal_msg
+    ee_plan = moveit.planToPose(ee_goal_msg)
 
-	# Execute plan to handover pose
-	rob9Utils.iiwa.execute_spline_trajectory(ee_plan)
+    # Execute plan to handover pose
+    rob9Utils.iiwa.execute_spline_trajectory(ee_plan)
     rospy.sleep(2)
     #input("Press Enter when you are ready to move the robot back to the ready pose")
 
@@ -289,7 +289,7 @@ def computeWaypoints(graspObjects, offset = 0.1):
     return grasps_msg
 
 if __name__ == '__main__':
-    global grasps_affordance, img, affClient, pcd, masks, bboxs
+    global grasps_affordance, img, affClient, pcd, masks, bboxs, cloud_uv
     demo = std_msgs.msg.Bool()
     demo.data = False
     if len(sys.argv) > 1:

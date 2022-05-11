@@ -39,7 +39,7 @@ def setPTPCartesianSpeedLimits(max_cart_vel = 1.0, max_cart_acc = 1.0,
     set_ptp_cartesian_speed_client = rospy.ServiceProxy("/iiwa/configuration/setPTPCartesianLimits", SetPTPCartesianSpeedLimits)
 
     response = set_ptp_cartesian_speed_client(max_cart_vel, max_cart_acc, max_cart_jerk,
-                                                max_orient_vel, max_orient_acc, max_orient_jerk)
+                                                max_orien_vel, max_orien_acc, max_orien_jerk)
 
     if not response.success:
         print("Service call returned error: ", response.error);
