@@ -13,6 +13,7 @@ from scipy.spatial.transform import Rotation
 from std_msgs.msg import Header, Float32
 
 from orientation_service.srv import runOrientationSrv, runOrientationSrvResponse
+from orientation_service.srv import setSettingsOrientationSrv, setSettingsOrientationSrvResponse
 
 from rob9Utils.affordancetools import getPredictedAffordances, getAffordanceColors, getAffordanceContours, getObjectAffordancePointCloud
 from rob9Utils.utils import erodeMask, keepLargestContour, convexHullFromContours, maskFromConvexHull, thresholdMaskBySize, removeOverlapMask
@@ -29,6 +30,7 @@ class OrientationServer(object):
         print('Starting...')
         rospy.init_node('orientation_service', anonymous=True)
         self.serviceRun = rospy.Service("/computation/handover_orientation/get", runOrientationSrv, self.run)
+        self.serviceRun = rospy.Service("/computation/handover_orientation/set_settings", setSettingsOrientationSrv, self.setSettings)
 
         self.rate = rospy.Rate(5)
 
@@ -60,8 +62,121 @@ class OrientationServer(object):
 
     def setSettings(self, msg):
 
-        todo = True
+        self.method = msg.method.data
         return setSettingsOrientationSrvResponse()
+
+    def createSourceWGrasp(self):
+
+        points = []
+        colors = []
+
+        for i in range(15):
+            x = -0.4 + i * 0.05
+            length = 0.08 + 0.01*i
+
+            for j in range(16):
+                z = (length * math.cos(math.pi * (j / 8)) ) #- (length * math.sin(math.pi * j))
+                y = (length * math.sin(math.pi * (j / 8)))
+                points.append([x, y, z])
+                colors.append((255, 0, 255))
+
+        points = np.array(points)
+        colors = np.array(colors)
+
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(points)
+        pcd.colors = o3d.utility.Vector3dVector(colors)
+
+        return pcd, np.identity(3)
+
+    def createSourceGrasp(self):
+
+        label_colors = {1: (0, 0, 255), # grasp
+        2: (0, 255, 0), # cut
+        3: (123, 255, 123), # scoop
+        4: (255, 0, 0), # contain
+        5: (255, 255, 0), # pound
+        6: (255, 255, 255), # support
+        7: (255, 0, 255)} # wrap-grasp
+
+        # grasp
+        points = []
+        colors = []
+
+        for i in range(15):
+            x = -0.5 + i * 0.02
+            h, d = 0.02, 0.02
+
+            points.append([x, h, d])
+            points.append([x, -h, d])
+            points.append([x, h, -d])
+            points.append([x, -h, -d])
+
+            colors.append((0, 0, 255))
+            colors.append((0, 0, 255))
+            colors.append((0, 0, 255))
+            colors.append((0, 0, 255))
+
+        for i in range(2,7):
+            for j in range(5):
+
+                x = 0.2 + j * 0.02
+                h, d = 0.02, 0.02
+
+                points.append([x, h, d])
+                points.append([x, -h, d])
+                points.append([x, h, -d])
+                points.append([x, -h, -d])
+
+                colors.append(label_colors[i])
+                colors.append(label_colors[i])
+                colors.append(label_colors[i])
+                colors.append(label_colors[i])
+
+        points = np.array(points)
+        colors = np.array(colors)
+
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(points)
+        pcd.colors = o3d.utility.Vector3dVector(colors)
+
+        return pcd, np.identity(3)
+
+    def methodRule(self, pcd_affordance):
+        """ Input:
+            pcd_affordance  - o3d.geometry.PointCloud(), point cloud of object
+                              where each point's color is their respective
+                              affordance
+            Output:
+            T               - np.array(), shape (4,4) homogeneous transformation
+                              matrix describing current pose of object
+            G               - goal orientation
+        """
+        feature_vector = self.computeFeatureVector(pcd_affordance)
+        print(feature_vector)
+        if feature_vector[0][7] == 1:
+            source_pcd, goal_orientation = self.createSourceWGrasp()
+        else:
+            source_pcd, goal_orientation = self.createSourceGrasp()
+
+        target_bounds = pcd_affordance.get_max_bound() - pcd_affordance.get_min_bound()
+        source_bounds = source_pcd.get_max_bound() - source_pcd.get_min_bound()
+        scale = np.max(target_bounds) / np.max(source_bounds)
+
+        source_pcd_points = np.asarray(source_pcd.points)
+        source_pcd_points = source_pcd_points * scale
+        source_pcd.points = o3d.utility.Vector3dVector(source_pcd_points)
+
+        T, distances, iterations = self.icp(source_points = np.asanyarray(source_pcd.points),
+                                        source_colors = np.asanyarray(source_pcd.colors),
+                                        target_points = np.asanyarray(pcd_affordance.points),
+                                        target_colors = np.asanyarray(pcd_affordance.colors),
+                                        tolerance=0.00001)
+
+        source_pcd.transform(T)
+        return T, np.identity(3)
+
+        pass
 
     def methodObservation(self, pcd_affordance):
         """ Input:
@@ -99,8 +214,6 @@ class OrientationServer(object):
 
         print("received request...")
 
-        print(msg)
-
         camClient = CameraClient()
         pcd_geometry, pcd_color = camClient.unpackPCD(msg_geometry = msg.pcd_geometry,
                                                     msg_color = msg.pcd_color)
@@ -113,6 +226,8 @@ class OrientationServer(object):
         G = 0
         if self.method == 0:
             T, G = self.methodObservation(pcd_affordance)
+        elif self.method == 1:
+            T, G = self.methodRule(pcd_affordance)
 
         np.set_printoptions(suppress=True)
         print(T)

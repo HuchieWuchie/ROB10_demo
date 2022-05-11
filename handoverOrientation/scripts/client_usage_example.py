@@ -86,6 +86,7 @@ if __name__ == "__main__":
     print("computing orientation")
 
     ts = time.time()
+    rotClient.setSettings(1)
     orientation, translation, goal = rotClient.getOrientation(pcd_affordance)
     te = time.time()
 
