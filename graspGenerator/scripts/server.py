@@ -2,14 +2,14 @@
 
 import os
 import sys
-import torch
 import rospy
 import numpy as np
-import scipy.io as scio
-from ctypes import * # convert float to uint32
+import open3d as o3d
+import cv2
+import math
+from scipy.spatial.transform import Rotation as R
 
 from nav_msgs.msg import Path
-from graspnetAPI import GraspGroup
 from geometry_msgs.msg import Pose
 from scipy.spatial.transform import Rotation
 from std_msgs.msg import Header, Float32
@@ -17,17 +17,11 @@ from std_msgs.msg import Header, Float32
 from grasp_generator.srv import *
 from rob9.msg import *
 from rob9.srv import *
+from rob9Utils.visualize import create_mesh_box, createGripper
+from grasp_service.client import GraspingGeneratorClient
 from cameraService.cameraClient import CameraClient
 #from rob9Utils.graspGroup import GraspGroup as rob9GraspGroup
 #from rob9Utils.grasp import Grasp as rob9Grasp
-
-ROOT_DIR = '/graspnet/graspnet-baseline/'  # path to graspnet-baseline
-sys.path.append(os.path.join(ROOT_DIR, 'models'))
-sys.path.append(os.path.join(ROOT_DIR, 'utils'))
-SCRIPT_DIR = os.path.normpath(__file__ + os.sep + os.pardir)
-
-from graspnet import GraspNet, pred_decode
-from collision_detector import ModelFreeCollisionDetector
 
 class GraspServer(object):
     """docstring for GraspServer."""
@@ -38,162 +32,250 @@ class GraspServer(object):
         rospy.init_node('grasp_generator', anonymous=True)
 
         self.rate = rospy.Rate(5)
-        self.net = None
-        self.GPU = False
 
         # Default values
-        self.checkpoint_path = SCRIPT_DIR + '/checkpoint-rs.tar' # path to weights
-        self.collision_thresh = 0.01 # Collision threshold in collision detection
-        self.num_view = 300 # View number
-        self.score_thresh = 0.0 # Remove every grasp with scores less than threshold
-        self.voxel_size = 0.2 # Voxel Size to process point clouds before collision detection
+        self.azimuth_step_size = 0.025
+        self.azimuth_min = 0
+        self.azimuth_max = 0.7
+
+        self.polar_step_size = 0.05
+        self.polar_min = 0.0
+        self.polar_max = 0.2
+
+        self.depth_step_size = 0.01 # m
+        self.depth_min = 0
+        self.depth_max = 0.03
 
         self.serviceRun = rospy.Service("grasp_generator/result", runGraspingSrv, self.run)
-        self.serviceStart = rospy.Service("grasp_generator/start", startGraspingSrv, self.start)
-        self.serviceSetSettings = rospy.Service("grasp_generator/set_settings", setSettingsGraspingSrv, self.set_settings)
+        self.serviceSetSettings = rospy.Service("grasp_generator/set_settings", setSettingsGraspingSrv, self.setSettings)
 
-    def set_settings(self, msg):
+    def setSettings(self, msg):
 
-        self.collision_thresh = msg.collision_thresh.data
-        self.num_view = msg.num_view.data
-        self.score_thresh = msg.score_thresh.data
-        self.voxel_size = msg.voxel_size.data
+        self.azimuth_step_size = msg.azimuth_step_size.data
+        self.azimuth_min = msg.azimuth_min.data
+        self.azimuth_max = msg.azimuth_max.data
 
-        print("Running grasp generator with these settings: ")
-        print("Collision threshold: ", self.collision_thresh)
-        print("Num veiw: ", self.num_view)
-        print("Grasp score threshold: ", self.score_thresh)
-        print("Voxel size: ", self.voxel_size)
+        self.polar_step_size = msg.polar_step_size.data
+        self.polar_min = msg.polar_min.data
+        self.polar_max = msg.polar_max.data
+
+        self.depth_step_size = msg.depth_step_size.data # m
+        self.depth_min = msg.depth_min.data
+        self.depth_max = msg.depth_max.data
+
+        print("Updated settings")
 
         return setSettingsGraspingSrvResponse()
 
-    def start(self, msg):
-
-        print('Loading network...')
-        self.GPU = msg.GPU.data
-        self.net = self.get_net()
-        print('Network loaded')
-        print('Waiting for go...')
-
-        return startGraspingSrvResponse()
-
     def run(self, msg):
 
-        cam = CameraClient()
+        cam_client = CameraClient()
 
-        if self.net is None:
-            print("No grasping network is initialized.")
-            return runGraspingSrvResponse()
 
-        cloud, rgb = cam.getPointCloudStatic()
+        print("Computing...")
+        sampled_grasp_points, _ = cam_client.unpackPCD(msg.grasp_points, None)
+        pcd_env_points, _ = cam_client.unpackPCD(msg.pcd_env, None)
+        frame_id = msg.frame_id.data
+        tool_id = msg.tool_id.data
+        affordance_id = msg.affordance_id.data
+        obj_inst = msg.object_instance.data
 
-        while cloud is None or rgb is None:
-            self.rate.sleep
+        pcd_downsample = o3d.geometry.PointCloud()
+        pcd_downsample.points = o3d.utility.Vector3dVector(pcd_env_points)
 
-        print('Processing image through graspnet...')
+        sampled_grasps = o3d.geometry.PointCloud()
+        sampled_grasps.points = o3d.utility.Vector3dVector(sampled_grasp_points)
+        sampled_grasps = sampled_grasps.voxel_down_sample(voxel_size=0.02)
+        sampled_grasp_points = np.asanyarray(sampled_grasps.points)
 
-        end_points = self.get_and_process_data(cloud, rgb)
+        polar_values = np.arange(self.polar_min, self.polar_max + self.polar_step_size,
+                                    self.polar_step_size)
+        azimuth_values = np.arange(self.azimuth_min, self.azimuth_max + self.azimuth_step_size,
+                                    self.azimuth_step_size)
+        depth_values = np.arange(self.depth_min, self.depth_max + self.depth_step_size,
+                                    self.depth_step_size)
 
-        gg = self.get_grasps(end_points)
-        if self.collision_thresh > 0:
-            gg = self.collision_detection(gg, cloud)
-        gg.nms()
-        gg = self.remove_grasps_under_score(gg, self.score_thresh) #  Score range between 0 and 2. Under 0.1 bad, over 0.7 good
+        poses, scores = [], []
+        for grasp_count, s_grasp in enumerate(np.asanyarray(sampled_grasp_points)):
 
+
+            local_points = np.asanyarray(pcd_downsample.points)
+            idx_min_x = local_points[:,0] > (s_grasp[0] - 0.1)
+            local_points = local_points[idx_min_x]
+            idx_max_x = local_points[:,0] < (s_grasp[0] + 0.1)
+            local_points = local_points[idx_max_x]
+
+            idx_min_y = local_points[:,1] > (s_grasp[1] - 0.1)
+            local_points = local_points[idx_min_y]
+            idx_max_y = local_points[:,1] < (s_grasp[1] + 0.1)
+            local_points = local_points[idx_max_y]
+
+            idx_min_z = local_points[:,2] > (s_grasp[2] - 0.1)
+            local_points = local_points[idx_min_z]
+            idx_max_z = local_points[:,2] < (s_grasp[2] + 0.1)
+            local_points = local_points[idx_max_z]
+
+            blob_matrix = np.zeros((polar_values.shape[0],
+                                    azimuth_values.shape[0])).astype(np.uint8)
+
+            for y_count, polar_value in enumerate(polar_values):
+                for x_count, azimuth_value in enumerate(azimuth_values):
+
+                    # compute translation
+                    translation = s_grasp.copy()
+                    translation[2] = s_grasp[2]# - depth_value
+
+                    # compute orientation
+
+                    ee_rotation = np.array([math.pi + (math.pi * polar_value), 0, (math.pi *azimuth_value)])
+                    rotEE = R.from_euler('XYZ', ee_rotation)
+                    eeRotMat = rotEE.as_matrix()
+
+                    gripper = createGripper(opening = 0.08, translation = translation, rotation = eeRotMat)
+                    if self.checkCollisionEnvironment(gripper, local_points) == False:
+                        blob_matrix[y_count, x_count] = 255
+
+            if 255 in np.unique(blob_matrix):
+                best_grasp_idx, score = self.processGrasps(blob_matrix)
+
+                polar_value = polar_values[best_grasp_idx[0]]
+                azimuth_value = azimuth_values[best_grasp_idx[1]]
+
+                ee_rotation = np.array([math.pi + (math.pi * polar_value), 0, (math.pi *azimuth_value)])
+                rotEE = R.from_euler('XYZ', ee_rotation)
+                eeRotMat = rotEE.as_matrix()
+
+                d_count = 0
+                for depth_value in depth_values:
+
+                    translation = s_grasp.copy()
+                    translation[2] = translation[2] - depth_value
+                    gripper = createGripper(opening = 0.08, translation = translation, rotation = eeRotMat)
+
+                    if self.checkCollisionEnvironment(gripper, local_points) == True:
+                        break
+
+                    d_count += 1
+
+                translation = s_grasp.copy()
+                translation[2] = s_grasp[2] - depth_values[int(d_count / 2)]
+                quat = rotEE.as_quat()
+                poses.append([translation[0], translation[1], translation[2],
+                            quat[0], quat[1], quat[2], quat[3]])
+                scores.append(score)
         print("Computed grasps, now sending...")
 
-        return self.generate_ros_message(gg)
+        grasp_client = GraspingGeneratorClient()
+        grasp_msg = grasp_client.packGrasps(poses, scores, frame_id, tool_id,
+                                            affordance_id, obj_inst)
 
-    def get_net(self):
-        # Init the model
-        net = GraspNet(input_feature_dim=0, num_view=self.num_view, num_angle=12, num_depth=4,
-                 cylinder_radius=0.05, hmin=-0.02, hmax_list=[0.01, 0.02, 0.03, 0.04], is_training=False)
-        device = torch.device("cuda:0" if self.GPU else "cpu")
-        net.to(device)
-        checkpoint = torch.load(self.checkpoint_path)
-        net.load_state_dict(checkpoint['model_state_dict'])
-        start_epoch = checkpoint['epoch']
-        print("-> loaded checkpoint %s (epoch: %d)"%(self.checkpoint_path, start_epoch))
-        net.eval()
+        response = runGraspingSrvResponse()
+        response.grasps = grasp_msg
 
-        return net
+        return response
+
+    def processGrasps(self, blob_img):
 
 
-    def get_and_process_data(self, cloud, rgb):
+        contours, hierarchy = cv2.findContours(blob_img, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
 
-        end_points = dict()
-        cloud_sampled = torch.from_numpy(cloud[np.newaxis].astype(np.float32))
-        device = torch.device("cuda:0" if self.GPU else "cpu")
-        cloud_sampled = cloud_sampled.to(device)
+        hulls = []
+        for contour in contours:
+            hulls.append(cv2.convexHull(contour, False))
 
-        end_points['point_clouds'] = cloud_sampled
-        end_points['cloud_colors'] = rgb
+        largest_blob = 0
+        idx = [0,0]
+        for i in range(len(hulls)):
+            im = np.zeros((blob_img.shape[0], blob_img.shape[1]))
+            cv2.drawContours(im, hulls, i, 255, -1)
+            size = np.count_nonzero(im == 255)
+            # find largest axis
+            true_idxs = np.where(im == 255)
+            y_range = np.max(true_idxs[0]) - np.min(true_idxs[0])
+            x_range = np.max(true_idxs[1]) - np.min(true_idxs[1])
 
-        return end_points
+            x_vals = np.arange(np.min(true_idxs[1]), np.max(true_idxs[1])) - int(x_range/2)
+            y_vals = np.arange(np.min(true_idxs[0]), np.max(true_idxs[0])) - int(y_range/2)
 
-    def get_grasps(self, end_points):
-        # Forward pass
-        with torch.no_grad():
-            end_points = self.net(end_points)
-            grasp_preds = pred_decode(end_points)
-        gg_array = grasp_preds[0].detach().cpu().numpy()
-        gg = GraspGroup(gg_array)
-        return gg
+            k_size = 0
+            x_start = int(np.median(true_idxs[1]))
+            y_start = int(np.median(true_idxs[0]))
+            while True:
+                local_area = im[y_start - k_size : y_start + k_size + 1,
+                                x_start - k_size : x_start + k_size + 1]
+                if 255 in np.unique(local_area):
+                    idx_y = np.where(local_area == 255)[0][0] + y_start
+                    idx_x = np.where(local_area == 255)[1][0] + x_start
+                    idx = [idx_y, idx_x]
+                    break
+                k_size +=1
 
-    def generate_ros_message(self, gg):
+            if size > largest_blob:
+                largest_blob = size
 
-        grasps = gg
-        seq = 0
+        score = largest_blob / (im.shape[0] * im.shape[1])
 
-        #graspGroup = rob9GraspGroup()
-        graspGroupMsg = GraspGroupMsg()
-        graspList = []
+        return idx, score
 
-        for grap in grasps:
+    def insideCubeTest(self, cube, points):
+        """
+        cube =  numpy array of the shape (8,3) with coordinates in the clockwise order. first the bottom plane is considered then the top one.
+        points = array of points with shape (N, 3).
+        Returns the indices of the points array which are outside the cube3d
+        modified: https://stackoverflow.com/questions/21037241/how-to-determine-a-point-is-inside-or-outside-a-cube
+        """
 
-            header = Header()
-            header.stamp = rospy.Time.now()
-            header.frame_id = str("ptu_camera_color_optical_frame_real")
-            header.seq = seq
-            seq += 1
+        b1,b2,b4,t1,t3,t4,t2,b3 = cube
 
-            pose = Pose()
-            pose.position.x = grap.translation[0]
-            pose.position.y = grap.translation[1]
-            pose.position.z = grap.translation[2]
+        dir1 = (t1-b1)
+        size1 = np.linalg.norm(dir1)
+        dir1 = dir1 / size1
 
-            rot = Rotation.from_matrix(grap.rotation_matrix)
-            quat = rot.as_quat()
-            pose.orientation.x = quat[0]
-            pose.orientation.y = quat[1]
-            pose.orientation.z = quat[2]
-            pose.orientation.w = quat[3]
+        dir2 = (b2-b1)
+        size2 = np.linalg.norm(dir2)
+        dir2 = dir2 / size2
 
-            m = GraspMsg()
-            m.score.data = grap.score
-            m.header = header
-            m.pose = pose
+        dir3 = (b4-b1)
+        size3 = np.linalg.norm(dir3)
+        dir3 = dir3 / size3
 
-            graspList.append(m)
+        cube3d_center = (b1 + t3)/2.0
 
-        graspGroupMsg.grasps = graspList
+        dir_vec = points - cube3d_center
 
-        return graspGroupMsg
+        res1 = np.where( (np.absolute(np.dot(dir_vec, dir1)) * 2) > size1 )[0]
+        res2 = np.where( (np.absolute(np.dot(dir_vec, dir2)) * 2) > size2 )[0]
+        res3 = np.where( (np.absolute(np.dot(dir_vec, dir3)) * 2) > size3 )[0]
 
-    def remove_grasps_under_score(self, gg, score_thresh):
-        gg.sort_by_score()
-        grasp_nr = 0
-        for scores in gg.scores:
-            if scores < score_thresh:
-                gg = gg[:grasp_nr]
-            grasp_nr += 1
-        return gg
+        return list( set().union(res1, res2, res3) )
 
-    def collision_detection(self, gg, cloud):
-        mfcdetector = ModelFreeCollisionDetector(cloud, voxel_size=self.voxel_size)
-        collision_mask = mfcdetector.detect(gg, approach_dist=0.05, collision_thresh=self.collision_thresh)
-        gg = gg[~collision_mask]
-        return gg
+
+    def checkCollisionEnvironment(self, gripper, points):
+
+
+        points_l_finger = np.asanyarray(gripper[1].get_oriented_bounding_box().get_box_points())
+        points_r_finger = np.asanyarray(gripper[2].get_oriented_bounding_box().get_box_points())
+        points_chasis = np.asanyarray(gripper[0].get_oriented_bounding_box().get_box_points())
+
+        # check collision left_finger
+        points_outside = self.insideCubeTest(points_l_finger,
+                                        points)
+        if len(points_outside) != points.shape[0]:
+            return True
+
+
+        # check collision right_finger
+        points_outside = self.insideCubeTest(points_r_finger,
+                                        points)
+        if len(points_outside) != points.shape[0]:
+            return True
+
+        # check collisoin chasis
+        points_outside = self.insideCubeTest(points_chasis,
+                                        points)
+        if len(points_outside) != points.shape[0]:
+            return True
+        return False
 
 if __name__ == "__main__":
 

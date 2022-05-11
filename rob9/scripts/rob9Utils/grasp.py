@@ -28,6 +28,11 @@ class Position(object):
         elif index is 2:
             return self.z
 
+    def set(self, x, y, z):
+        self.x = x
+        self.y = y
+        self.z = z
+
     def getVector(self, format="row"):
         if format == "row":
             return np.array([self.x, self.y, self.z])
@@ -155,11 +160,7 @@ class Grasp(object):
         self.orientation = Orientation(qx = new_f.pose.orientation.x, qy = new_f.pose.orientation.y, qz = new_f.pose.orientation.z, qw = new_f.pose.orientation.w)
         self.frame_id = new_f.header.frame_id
 
-    def toPoseStampedMsg(self):
-
-        header = Header()
-        header.stamp = rospy.Time.now()
-        header.frame_id = str(self.frame_id)
+    def toPoseMsg(self):
 
         pose = Pose()
         pose.position.x = self.position.x
@@ -169,6 +170,16 @@ class Grasp(object):
         pose.orientation.y = self.orientation.y
         pose.orientation.z = self.orientation.z
         pose.orientation.w = self.orientation.w
+
+        return pose
+
+    def toPoseStampedMsg(self):
+
+        header = Header()
+        header.stamp = rospy.Time.now()
+        header.frame_id = str(self.frame_id)
+
+        pose = self.toPoseMsg()
 
         msg = PoseStamped()
         msg.header = header

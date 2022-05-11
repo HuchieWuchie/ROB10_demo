@@ -5,12 +5,16 @@ import cv2
 import open3d as o3d
 import os
 import time
+from pathlib import Path
 
 from cameraService.cameraClient import CameraClient
 from affordanceService.client import AffordanceClient
 from orientationService.client import OrientationClient
 
 from rob9Utils.visualize import visualizeMasksInRGB, visualizeFrameMesh
+from rob9Utils.affordancetools import getPredictedAffordances, getAffordanceContours, getObjectAffordancePointCloud
+from rob9Utils.utils import erodeMask, keepLargestContour, convexHullFromContours, maskFromConvexHull, thresholdMaskBySize, removeOverlapMask
+
 
 
 if __name__ == "__main__":
@@ -21,7 +25,8 @@ if __name__ == "__main__":
 
     # Load sample data
 
-    path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "sample_data")
+    project_path = Path(os.path.realpath(__file__)).parent.parent.parent
+    path = os.path.join(project_path, "sample_data")
 
     masks = np.load(os.path.join(path, "masks.npy")).astype(np.uint8)
     labels = np.load(os.path.join(path, "labels.npy"))
@@ -36,18 +41,53 @@ if __name__ == "__main__":
 
     masks = masks[5]
     labels = labels[5]
-    bboxs = bboxs[5]
+    bbox = bboxs[5]
 
     # Visualize masks
     cv2.imshow("Masks", visualizeMasksInRGB(img, masks))
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
+    # Perform post processing of affordance segmentation
+
+    affordances_in_object = getPredictedAffordances(masks = masks, bbox = bbox)
+    print("predicted affordances", affordances_in_object)
+
+    for aff in affordances_in_object:
+
+        masks = erodeMask(affordance_id = aff, masks = masks,
+                        kernel = np.ones((3,3)))
+        contours = getAffordanceContours(bbox = bbox, affordance_id = aff,
+                                        masks = masks)
+        if len(contours) > 0:
+            contours = keepLargestContour(contours)
+            hulls = convexHullFromContours(contours)
+
+            h, w = masks.shape[-2], masks.shape[-1]
+            if bbox is not None:
+                h = int(bbox[3] - bbox[1])
+                w = int(bbox[2] - bbox[0])
+
+            aff_mask = maskFromConvexHull(h, w, hulls = hulls)
+            _, keep = thresholdMaskBySize(aff_mask, threshold = 0.05)
+            if keep == False:
+                aff_mask[:, :] = False
+
+            if bbox is not None:
+                masks[aff, bbox[1]:bbox[3], bbox[0]:bbox[2]] = aff_mask
+            else:
+                masks[aff, :, :] = aff_mask
+
+    masks = removeOverlapMask(masks = masks)
+
+    pcd_affordance = getObjectAffordancePointCloud(pcd, masks, uvs = uv)
+
     # Compute orientation
-    print("computing")
+    print("computing orientation")
 
     ts = time.time()
-    orientation, translation, goal = rotClient.getOrientation(geometry, uv, masks, bboxs)
+    rotClient.setSettings(1)
+    orientation, translation, goal = rotClient.getOrientation(pcd_affordance)
     te = time.time()
 
     t_2_f = te - ts

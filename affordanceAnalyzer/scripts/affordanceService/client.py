@@ -86,6 +86,9 @@ class AffordanceClient(object):
 
         return response.name.data
 
+    def getFunctionalLabels(self):
+        return self.functionalLabels
+
 
     def start(self, GPU=False):
         self.GPU = GPU

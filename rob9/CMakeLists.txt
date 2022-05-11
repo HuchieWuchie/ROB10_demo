@@ -64,6 +64,7 @@ add_message_files(
    moveitMoveToNamedSrv.srv
    moveitPlanToNamedSrv.srv
    moveitPlanToPoseSrv.srv
+   moveitPlanFromPoseToPoseSrv.srv
    moveitMoveToPoseSrv.srv
    moveitExecuteSrv.srv
    moveitRobotStateSrv.srv

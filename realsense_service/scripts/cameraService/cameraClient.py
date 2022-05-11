@@ -115,8 +115,10 @@ class CameraClient(object):
         header.frame_id = "ptu_camera_color_optical_frame"
 
         msg_geometry = pc2.create_cloud(header, FIELDS_XYZ, geometry)
-        msg_color = Float32MultiArray()
-        msg_color.data = color
+        msg_color = 0
+        if color is not None:
+            msg_color = Float32MultiArray()
+            msg_color.data = color.astype(float).flatten().tolist()
 
         return msg_geometry, msg_color
 

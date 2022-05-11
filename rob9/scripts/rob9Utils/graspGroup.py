@@ -48,7 +48,7 @@ class GraspGroup(object):
     def fromGraspGroupMsg(self, msg):
         self.__init__()
         self.grasps = []
-        for graspMsg in msg.data.grasps:
+        for graspMsg in msg.grasps:
             self.add(Grasp().fromGraspMsg(graspMsg))
 
         return self

@@ -1,6 +1,3 @@
-std_msgs/Float32 collision_thresh
-std_msgs/Int32 num_view
-std_msgs/Float32 score_thresh
-std_msgs/Float32 voxel_size
+std_msgs/Int32 method
 ---
 std_msgs/Bool success
