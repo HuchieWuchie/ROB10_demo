@@ -31,14 +31,14 @@
         <joint name="iiwa_joint_6" value="0.25" />
         <joint name="iiwa_joint_7" value="0" />
     </group_state>
-    <group_state name="camera_ready" group="manipulator">
-        <joint name="iiwa_joint_1" value="0.4" />
-        <joint name="iiwa_joint_2" value="0.4" />
+    <group_state name="camera_ready_1" group="manipulator">
+        <joint name="iiwa_joint_1" value="0.5" />
+        <joint name="iiwa_joint_2" value="0.5348" />
         <joint name="iiwa_joint_3" value="0" />
-        <joint name="iiwa_joint_4" value="-1.2" />
+        <joint name="iiwa_joint_4" value="-2" />
         <joint name="iiwa_joint_5" value="0" />
-        <joint name="iiwa_joint_6" value="1.5707" />
-        <joint name="iiwa_joint_7" value="0" />
+        <joint name="iiwa_joint_6" value="-0.96" />
+        <joint name="iiwa_joint_7" value="1.57" />
     </group_state>
     <!--END EFFECTOR: Purpose: Represent information about an end effector.-->
     <end_effector name="EE" parent_link="right_ee_link" group="manipulator" />

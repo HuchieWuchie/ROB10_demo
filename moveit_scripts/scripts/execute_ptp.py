@@ -18,6 +18,7 @@ import std_msgs.msg
 from std_msgs.msg import Int8, MultiArrayDimension, MultiArrayLayout, Int32MultiArray, Float32MultiArray, Bool, Header
 from sensor_msgs.msg import PointCloud2, PointField
 import sensor_msgs.point_cloud2 as pc2
+from iiwa_msgs.msg import JointPosition
 
 import rob9Utils.transformations as transform
 from rob9Utils.graspGroup import GraspGroup
@@ -108,6 +109,26 @@ def wait():
     except rospy.ROSInterruptException:
         pass
 
+
+def pub_joint_command(plan):
+    print("pub_joint_command")
+    joint_positions = plan.joint_trajectory.points[-1]
+    joint_goal = JointPosition()
+    joint_goal.header.frame_id = ""
+    joint_goal.header.stamp = rospy.Time.now()
+    joint_goal.position.a1 = joint_positions.positions[0]
+    joint_goal.position.a2 = joint_positions.positions[1]
+    joint_goal.position.a3 = joint_positions.positions[2]
+    joint_goal.position.a4 = joint_positions.positions[3]
+    joint_goal.position.a5 = joint_positions.positions[4]
+    joint_goal.position.a6 = joint_positions.positions[5]
+    joint_goal.position.a7 = joint_positions.positions[6]
+    #print(joint_goal)
+    pub_iiwa.publish(joint_goal)
+
+
+
+
 if __name__ == '__main__':
     global grasps_affordance, img, affClient, pcd, masks, bboxs, req_aff_id, req_obj_id, state
 
@@ -128,12 +149,12 @@ if __name__ == '__main__':
             print("STATUS end point frame was changed: ", set_ee)
 
             set_PTP_speed_limit = True
-            if not rob9Utils.iiwa.setPTPJointSpeedLimits(0.4, 0.4):
+            if not rob9Utils.iiwa.setPTPJointSpeedLimits(0.1, 0.1):
                 set_PTP_speed_limit = False
             print("STATUS PTP joint speed limits was changed: ", set_PTP_speed_limit)
 
             set_PTP_cart_speed_limit = True
-            if not rob9Utils.iiwa.setPTPCartesianSpeedLimits(0.4, 0.4, 0.4, 0.4, 0.4, 0.4):
+            if not rob9Utils.iiwa.setPTPCartesianSpeedLimits(0.1, 0.1, 0.1, 0.1, 0.1, 0.1):
                 set_PTP_cart_speed_limit = False
             print("STATUS PTP cartesian speed limits was changed: ", set_PTP_cart_speed_limit)
 
@@ -142,6 +163,7 @@ if __name__ == '__main__':
             gripper_pub = rospy.Publisher('iiwa/gripper_controller', Int8, queue_size=10, latch=True)
             pub_grasp = rospy.Publisher('iiwa/pose_to_reach', PoseStamped, queue_size=10)
             pub_waypoint = rospy.Publisher('iiwa/pose_to_reach_waypoint', PoseStamped, queue_size=10)
+            pub_iiwa = rospy.Publisher('iiwa/command/JointPosition', JointPosition, queue_size=10 )
             display_trajectory_publisher = rospy.Publisher('iiwa/move_group/display_planned_path',
                                                 moveit_msgs.msg.DisplayTrajectory,
                                                 queue_size=20)
@@ -168,11 +190,14 @@ if __name__ == '__main__':
             gripper_pub.publish(activate_gripper_msg)
             gripper_pub.publish(open_gripper_msg)
             gripper_pub.publish(pinch_gripper_msg)
-            rob9Utils.iiwa.execute_spline_trajectory(moveit.planToNamed("ready"))
+            #rob9Utils.iiwa.execute_spline_trajectory(moveit.planToNamed("ready"))
             #moveit.execute(moveit.planToNamed("ready"))
             #moveit.moveToNamed("handover")
             #moveit.moveToNamed("ready")
-            exit()
+
+            result = rob9Utils.iiwa.execute_ptp(moveit.getJointPositionAtNamed("ready").joint_position.data)
+            state_ready = moveit.getCurrentState()
+            result = rob9Utils.iiwa.execute_ptp(moveit.getJointPositionAtNamed("camera_ready_1").joint_position.data)
 
             req_obj_id = -1
             req_aff_id = -1
@@ -370,15 +395,17 @@ if __name__ == '__main__':
 
                 ## Get goal position using linescan service
 
+
+                loc_client = LocationClient()
+                goal_location = loc_client.getLocation().flatten()
+                goal_location[0] = 0.3
+                goal_location[1] = -0.1
+
                 _, _, rotMatGiver2World = transform.getTransform("giver", "world")
                 goal_orientation_world = np.matmul(np.linalg.inv(rotMatGiver2World), goal_orientation_giver)
 
 
                 goal_rot_quat = R.from_matrix(goal_orientation_world).as_quat()
-
-                loc_client = LocationClient()
-                goal_location = loc_client.getLocation().flatten()
-                goal_location[0] = 0.4
 
                 goal_pose_world = np.hstack((goal_location.flatten(), goal_rot_quat))
 
@@ -395,17 +422,27 @@ if __name__ == '__main__':
                 #grasp_group.thresholdByScore(0.3)
                 grasp_group.sortByScore()
 
-                for grasp in grasp_group:
+                for count_grasp, grasp in enumerate(grasp_group):
+                    print(count_grasp)
 
                     waypoint = computeWaypoint(grasp, offset = 0.1)
+                    #print("Computed waypoint")
                     waypoint_msg = waypoint.toPoseMsg()
-
-                    plan_found_waypoint, plan_waypoint = moveit.planToPose(waypoint_msg)
-                    if len(plan_waypoint.joint_trajectory.points) > 0:
+                    #print("waypint to pose msg")
+                    # inverse kin where
+                    moveit.getCurrentState()
+                    #print("get current state works")
+                    pub_waypoint.publish(waypoint.toPoseStampedMsg())
+                    valid_waypoint, state_waypoint = moveit.getInverseKinematicsSolution(state_ready, waypoint_msg)
+                    #print("Valid waypoint: ", valid_waypoint)
+                    print("State waypoint: ", state_waypoint)
+                    if valid_waypoint:
                         grasp_msg = grasp.toPoseMsg()
-                        plan_found_waypoint_to_grasp, plan_grasp = moveit.planFromPoseToPose(waypoint_msg, grasp_msg)
+                        #plan_found_waypoint_to_grasp, plan_grasp = moveit.planFromPoseToPose(waypoint_msg, grasp_msg)
+                        valid_grasp, state_grasp = moveit.getInverseKinematicsSolution(state_waypoint.solution, grasp_msg)
+                        print("Got state grasp")
 
-                        if len(plan_grasp.joint_trajectory.points) > 0:
+                        if valid_grasp:
 
                             pub_waypoint.publish(waypoint.toPoseStampedMsg())
                             pub_grasp.publish(grasp.toPoseStampedMsg())
@@ -455,27 +492,27 @@ if __name__ == '__main__':
 
                             transform.visualizeTransform(ee_tf, "goal_EE_pose")
 
-                            plan_handover = 0
+                            valid_handover, state_handover = moveit.getInverseKinematicsSolution(state_ready, ee_pose)
+                            print("got state handover ", valid_handover)
                             # call planToPose with ee_goal_msg
+                            """
                             i = 0
                             while i < 100:
                                 ee_pertubated = pertubateEEPose(ee_pose, i, rate = 0.005)
-                                plan_found_handover, plan_handover = moveit.planToPose(ee_pertubated)
+                                valid_handover, state_handover = moveit.getInverseKinematicsSolution(state_ready, ee_pertubated)
+                                #plan_found_handover, plan_handover = moveit.planToPose(ee_pertubated)
                                 print(i, ee_pertubated)
 
-                                if len(plan_handover.joint_trajectory.points) > 0:
+                                if valid_grasp:
                                     i = 100
                                 i += 1
+                            """
 
 
+                            print("Executing trajectory")
 
-                            print("Num points in waypoint plan: ", len(plan_waypoint.joint_trajectory.points))
-                            print("Num points in grasp plan: ", len(plan_grasp.joint_trajectory.points))
-                            print("Num points in handover plan: ", len(plan_handover.joint_trajectory.points))
-
-                            if len(plan_handover.joint_trajectory.points) > 0:
+                            if valid_handover:
                             #if plan_found_handover:
-
                                 pos = grasp.position.getVector()
                                 rot = grasp.orientation.getRotationMatrix()
 
@@ -486,14 +523,18 @@ if __name__ == '__main__':
                                 o3d.visualization.draw_geometries([pcd, *vis_grasps, vis_gripper])
 
                                 print("Moving to waypoint...")
+                                result = rob9Utils.iiwa.execute_ptp(moveit.getJointPositionAtNamed("ready").joint_position.data)
+                                result = rob9Utils.iiwa.execute_ptp(state_waypoint.solution.joint_state.position[0:7])
+                                #rob9Utils.iiwa.execute_spline_trajectory(plan_waypoint)
 
-                                rob9Utils.iiwa.execute_spline_trajectory(plan_waypoint)
                                 #moveit.execute(plan_waypoint)
                                 rospy.sleep(1)
 
                                 print("Moving to grasp pose...")
 
-                                rob9Utils.iiwa.execute_spline_trajectory(plan_grasp)
+                                #rob9Utils.iiwa.execute_spline_trajectory(plan_grasp)
+                                #result = rob9Utils.iiwa.execute_ptp(plan_grasp)
+                                result = rob9Utils.iiwa.execute_ptp(state_grasp.solution.joint_state.position[0:7])
                                 #moveit.execute(plan_grasp)
                                 rospy.sleep(1)
 
@@ -504,20 +545,24 @@ if __name__ == '__main__':
                                 print("Moving to ready...")
                                 #input("Press Enter when you are ready to move the robot back to the ready pose") # outcommented by Albert Wed 23 March 09:06
 
-                                rob9Utils.iiwa.execute_spline_trajectory(moveit.planToNamed("ready"))
+                                #result = rob9Utils.iiwa.execute_ptp(plan_waypoint)
+                                result = rob9Utils.iiwa.execute_ptp(state_waypoint.solution.joint_state.position[0:7])
+                                result = rob9Utils.iiwa.execute_ptp(moveit.getJointPositionAtNamed("ready").joint_position.data)
                                 #moveit.moveToNamed("ready")
 
                                 # Execute plan to handover pose
-                                rob9Utils.iiwa.execute_spline_trajectory(plan_handover)
+                                #result = rob9Utils.iiwa.execute_ptp(plan_handover)
+                                result = rob9Utils.iiwa.execute_ptp(state_handover.solution.joint_state.position[0:7])
                                 #moveit.execute(plan_handover)
                                 rospy.sleep(2)
                                 #input("Press Enter when you are ready to move the robot back to the ready pose")
 
                                 gripper_pub.publish(open_gripper_msg)
                                 rospy.sleep(2)
-                                rob9Utils.iiwa.execute_spline_trajectory(moveit.planToNamed("ready"))
+                                result = rob9Utils.iiwa.execute_ptp(moveit.getJointPositionAtNamed("ready").joint_position.data)
                                 #moveit.moveToNamed("ready")
                                 break
+                            print("No plans for grasp num ", count_grasp)
 
             state = 9
 

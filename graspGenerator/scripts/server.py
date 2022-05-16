@@ -17,7 +17,7 @@ from std_msgs.msg import Header, Float32
 from grasp_generator.srv import *
 from rob9.msg import *
 from rob9.srv import *
-from rob9Utils.visualize import create_mesh_box, createGripper
+from rob9Utils.visualize import create_mesh_box, createGripper, visualizeGripper, visualizeFrameMesh
 from grasp_service.client import GraspingGeneratorClient
 from cameraService.cameraClient import CameraClient
 #from rob9Utils.graspGroup import GraspGroup as rob9GraspGroup
@@ -36,7 +36,7 @@ class GraspServer(object):
         # Default values
         self.azimuth_step_size = 0.025
         self.azimuth_min = 0
-        self.azimuth_max = 0.7
+        self.azimuth_max = 0.6
 
         self.polar_step_size = 0.05
         self.polar_min = 0.0
@@ -127,12 +127,22 @@ class GraspServer(object):
 
                     # compute orientation
 
-                    ee_rotation = np.array([math.pi + (math.pi * polar_value), 0, (math.pi *azimuth_value)])
+                    ee_rotation = np.array([math.pi + (math.pi * polar_value), 0, (math.pi *azimuth_value)]) # franka
+                    #ee_rotation = np.array([(math.pi / 2.0) + (math.pi * azimuth_value) + math.pi, 0, (math.pi) + (math.pi * polar_value)])
                     rotEE = R.from_euler('XYZ', ee_rotation)
                     eeRotMat = rotEE.as_matrix()
 
+                    #world_gripper = createGripper(opening = 0.08, translation = np.zeros(3), rotation = np.identity(3))
+                    #vis_world_gripper = visualizeGripper(world_gripper)
+                    #world_coordinate_frame = visualizeFrameMesh(np.zeros(3),np.identity(3))
+                    #o3d.visualization.draw_geometries([pcd_downsample,  vis_world_gripper, world_coordinate_frame])
+
+
                     gripper = createGripper(opening = 0.08, translation = translation, rotation = eeRotMat)
                     if self.checkCollisionEnvironment(gripper, local_points) == False:
+                        #vis_gripper = visualizeGripper(gripper)
+                        #gripper_frame = visualizeFrameMesh(translation, eeRotMat)
+                        #o3d.visualization.draw_geometries([pcd_downsample,  vis_gripper, gripper_frame])
                         blob_matrix[y_count, x_count] = 255
 
             if 255 in np.unique(blob_matrix):
@@ -141,10 +151,12 @@ class GraspServer(object):
                 polar_value = polar_values[best_grasp_idx[0]]
                 azimuth_value = azimuth_values[best_grasp_idx[1]]
 
-                #ee_rotation = np.array([math.pi + (math.pi * polar_value), 0, (math.pi *azimuth_value)]) # franka
+                ee_rotation = np.array([math.pi + (math.pi * polar_value), 0, (math.pi *azimuth_value)]) # franka
                 #ee_rotation = np.array([0, math.pi / 2, math.pi/2])
-                ee_rotation = np.array([0, math.pi / 2, 0])
-                rotEE = R.from_euler('ZYX', ee_rotation)
+                #ee_rotation = np.array([0, math.pi / 2, 0])
+                #ee_rotation = np.array([(math.pi / 2.0) + (math.pi * azimuth_value) + math.pi, 0, (math.pi) + (math.pi * polar_value)])
+                #rotEE = R.from_euler('ZYX', ee_rotation)
+                rotEE = R.from_euler('XYZ', ee_rotation)
                 eeRotMat = rotEE.as_matrix()
 
                 d_count = 0
@@ -153,6 +165,9 @@ class GraspServer(object):
                     translation = s_grasp.copy()
                     translation[2] = translation[2] - depth_value
                     gripper = createGripper(opening = 0.08, translation = translation, rotation = eeRotMat)
+                    #vis_gripper = visualizeGripper(gripper)
+                    #gripper_frame = visualizeFrameMesh(translation, eeRotMat)
+                    #o3d.visualization.draw_geometries([pcd_downsample, vis_gripper, gripper_frame])
 
                     if self.checkCollisionEnvironment(gripper, local_points) == True:
                         break
@@ -161,6 +176,7 @@ class GraspServer(object):
 
                 translation = s_grasp.copy()
                 translation[2] = s_grasp[2] - depth_values[int(d_count / 2)]
+
                 quat = rotEE.as_quat()
                 poses.append([translation[0], translation[1], translation[2],
                             quat[0], quat[1], quat[2], quat[3]])

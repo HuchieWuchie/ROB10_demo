@@ -338,7 +338,8 @@ def createGripper(opening = 0.08, translation = np.zeros(3), rotation = np.ident
     finger_width = 0.02 # x-axis, in meters
     finger_length = 0.02 # y-axis, in meters
     finger_height = 0.045 # z-axis
-    finger_offset_z = -0.01
+    #finger_offset_z = -0.001
+    finger_offset_z = 0.015
 
     chasis_width = 0.03 # x-axis, in meters
     chasis_length = 0.18 # y-axis
@@ -353,30 +354,30 @@ def createGripper(opening = 0.08, translation = np.zeros(3), rotation = np.ident
     chasis = o3d.geometry.PointCloud()
     chasis.points = o3d.utility.Vector3dVector(chasis_points)
 
-    left_finger_points = np.array([[-chasis_width / 2.0, (-finger_width / 2) -(opening / 2), -finger_offset_z],
-                            [chasis_width / 2.0, (-finger_width / 2) -(opening / 2), -finger_offset_z],
-                            [-chasis_width / 2.0, (-finger_width / 2) -(opening / 2), finger_offset_z - finger_height],
-                            [chasis_width / 2.0, (-finger_width / 2) -(opening / 2), finger_offset_z - finger_height],
+    left_finger_points = np.array([[-chasis_width / 2.0, (-finger_width / 2) -(opening / 2), finger_offset_z],
+                            [chasis_width / 2.0, (-finger_width / 2) -(opening / 2), finger_offset_z],
+                            [-chasis_width / 2.0, (-finger_width / 2) -(opening / 2), -finger_offset_z - finger_height],
+                            [chasis_width / 2.0, (-finger_width / 2) -(opening / 2), -finger_offset_z - finger_height],
 
-                            [-chasis_width / 2.0, (finger_width / 2) -( opening / 2), -finger_offset_z],
-                            [chasis_width / 2.0, (finger_width / 2) -( opening / 2), -finger_offset_z],
-                            [-chasis_width / 2.0, (finger_width / 2) -( opening / 2), finger_offset_z - finger_height],
-                            [chasis_width / 2.0, (finger_width / 2) -( opening / 2), finger_offset_z - finger_height],
+                            [-chasis_width / 2.0, (finger_width / 2) -( opening / 2), finger_offset_z],
+                            [chasis_width / 2.0, (finger_width / 2) -( opening / 2), finger_offset_z],
+                            [-chasis_width / 2.0, (finger_width / 2) -( opening / 2), -finger_offset_z - finger_height],
+                            [chasis_width / 2.0, (finger_width / 2) -( opening / 2), -finger_offset_z - finger_height],
                             ])
 
     left_finger = o3d.geometry.PointCloud()
     left_finger_points = np.dot(rotation, left_finger_points.T).T + translation
     left_finger.points = o3d.utility.Vector3dVector(left_finger_points)
 
-    right_finger_points = np.array([[-chasis_width / 2.0, (finger_width / 2) + (opening / 2), -finger_offset_z],
-                            [chasis_width / 2.0, (finger_width / 2) + (opening / 2), -finger_offset_z],
-                            [-chasis_width / 2.0, (finger_width / 2) + (opening / 2), finger_offset_z - finger_height],
-                            [chasis_width / 2.0, (finger_width / 2) + (opening / 2), finger_offset_z - finger_height],
+    right_finger_points = np.array([[-chasis_width, (finger_width / 2) + (opening / 2), finger_offset_z],
+                            [chasis_width, (finger_width / 2) + (opening / 2), finger_offset_z],
+                            [-chasis_width, (finger_width / 2) + (opening / 2), -finger_offset_z - finger_height],
+                            [chasis_width, (finger_width / 2) + (opening / 2), -finger_offset_z - finger_height],
 
-                            [-chasis_width / 2.0, (-finger_width / 2) + ( opening / 2), -finger_offset_z],
-                            [chasis_width / 2.0, (-finger_width / 2) + ( opening / 2), -finger_offset_z],
-                            [-chasis_width / 2.0, (-finger_width / 2) + ( opening / 2), finger_offset_z - finger_height],
-                            [chasis_width / 2.0, (-finger_width / 2) + ( opening / 2), finger_offset_z - finger_height],
+                            [-chasis_width, (-finger_width / 2) + ( opening / 2), finger_offset_z],
+                            [chasis_width, (-finger_width / 2) + ( opening / 2), finger_offset_z],
+                            [-chasis_width, (-finger_width / 2) + ( opening / 2), -finger_offset_z - finger_height],
+                            [chasis_width, (-finger_width / 2) + ( opening / 2), -finger_offset_z - finger_height],
                             ])
 
     right_finger = o3d.geometry.PointCloud()

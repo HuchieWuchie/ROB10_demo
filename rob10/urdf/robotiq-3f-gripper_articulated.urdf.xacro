@@ -458,7 +458,7 @@
   <joint name="ee_right" type="fixed">
     <parent link="palm"/>
     <child link="right_ee_link"/>
-    <origin xyz="0 0.146 0" rpy="0 0 1.57"/>
+    <origin xyz="0 0.146 0" rpy="1.57 1.57 3.14"/>
   </joint>
 
   <joint name="s_model_connector" type="fixed">

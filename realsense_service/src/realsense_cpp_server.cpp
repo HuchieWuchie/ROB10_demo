@@ -152,17 +152,17 @@ class RealsenseServer{
         //pubPointCloudGeometryStaticRGB = n.advertise<std_msgs::Float32MultiArray>(baseService + "/pointcloudGeometry/static/rgb", 1);
 
         //Configure Realsense streams
-        cfg.enable_stream(RS2_STREAM_COLOR, cam_width, cam_height, RS2_FORMAT_BGR8, 30);
-        cfg.enable_stream(RS2_STREAM_DEPTH, cam_width, cam_height, RS2_FORMAT_Z16, 30);
+        cfg.enable_stream(RS2_STREAM_COLOR, cam_width, cam_height, RS2_FORMAT_BGR8, 6);
+        cfg.enable_stream(RS2_STREAM_DEPTH, cam_width, cam_height, RS2_FORMAT_Z16, 6);
     }
 };
 
 void RealsenseServer::initializeRealsense(){
     //SOURCE - https://github.com/IntelRealSense/librealsense/issues/5052
-    /*std::cout << "resetting a device" << std::endl;
+    std::cout << "resetting a device" << std::endl;
     rs2::context ctx;
     rs2::device dev = ctx.query_devices().front(); // Reset the first device
-    dev.hardware_reset();*/
+    dev.hardware_reset();
     std::cout << "initializing" << std::endl;
     pipe.start(cfg);
     //DROP STARTUP FRAMES
@@ -174,6 +174,12 @@ void RealsenseServer::initializeRealsense(){
 }
 
 void RealsenseServer::update(){
+    //pipe.start(cfg);
+    //DROP STARTUP FRAMES
+    //for(int i = 0; i < 50; i++){
+      //pipe.wait_for_frames();
+    //}
+    //pipe.start()
     ros::Time time_now = ros::Time::now();
     std::cout<<"[" << time_now <<"] Updating statics "<<std::endl;
     rs2::frameset frames = pipe.wait_for_frames();
@@ -186,12 +192,13 @@ void RealsenseServer::update(){
       rs2::hole_filling_filter hole_filter(2);
       rs2::decimation_filter dec_filter;
       rs2::threshold_filter thr_filter;
-      thr_filter.set_option(RS2_OPTION_MIN_DISTANCE, 0.3f);
+      thr_filter.set_option(RS2_OPTION_MIN_DISTANCE, 0.1f);
       thr_filter.set_option(RS2_OPTION_MAX_DISTANCE, 1.0f);
       processed_depth_frame = hole_filter.process(dec_filter.process(thr_filter.process(aligned_frames.get_depth_frame())));
 
       RealsenseServer::generateStatics();
     }
+    //pipe.stop();
     std::cout << "publishing" << std::endl;
 }
 

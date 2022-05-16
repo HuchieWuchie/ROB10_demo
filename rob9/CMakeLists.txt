@@ -68,6 +68,7 @@ add_message_files(
    moveitMoveToPoseSrv.srv
    moveitExecuteSrv.srv
    moveitRobotStateSrv.srv
+   moveitGetJointPositionAtNamed.srv
    runGraspingSrv.srv
    tf2GetTransformSrv.srv
    tf2VisualizeTransformSrv.srv

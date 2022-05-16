@@ -46,7 +46,7 @@
 
 
 
-        <node name="start_ptu" pkg="ptu" type="start_ptu_iiwa.py" required="true"/>
+        <!-- <node name="start_ptu" pkg="ptu" type="start_ptu_iiwa.py" required="false"/> -->
 
         <node name="moveit_service" pkg="rob9" type="moveit_service.py" output="screen" required="true"/>
 

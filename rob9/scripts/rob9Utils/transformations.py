@@ -280,7 +280,13 @@ def quaternionFromRotation(R):
     if q[0] < 0.0:
         np.negative(q, q)
 
-    q = np.flip(q) # reverse the array to get [x, y, z, w]
+    #q = np.flip(q) # reverse the array to get [x, y, z, w]
+    w, x, y, z = q
+    q[0] = x
+    q[1] = y
+    q[2] = z
+    q[3] = w
+
     return q
 
 def poseToMatrix(pose):

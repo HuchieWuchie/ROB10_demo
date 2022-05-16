@@ -8,7 +8,8 @@ import moveit_msgs
 import geometry_msgs
 from moveit_msgs.srv import GetPositionIK
 from moveit_msgs.msg import RobotTrajectory
-from std_msgs.msg import Bool
+from std_msgs.msg import Bool, Float64MultiArray
+
 
 from rob9.srv import moveitMoveToNamedSrv, moveitMoveToNamedSrvResponse
 from rob9.srv import moveitPlanToNamedSrv, moveitPlanToNamedSrvResponse
@@ -17,6 +18,8 @@ from rob9.srv import moveitMoveToPoseSrv, moveitMoveToPoseSrvResponse
 from rob9.srv import moveitExecuteSrv, moveitExecuteSrvResponse
 from rob9.srv import moveitRobotStateSrv, moveitRobotStateSrvResponse
 from rob9.srv import moveitPlanToPoseSrv, moveitPlanToPoseSrvResponse
+from rob9.srv import moveitGetJointPositionAtNamed, moveitGetJointPositionAtNamedResponse
+
 
 def moveToPose(req):
 
@@ -215,6 +218,19 @@ def getCurrentState(req):
 
     return robot.get_current_state()
 
+def getJointPositionAtNamed(req):
+    target_values = move_group.get_named_target_values(req.target.data)
+    resp = moveitGetJointPositionAtNamedResponse()
+    resp.joint_position.data.append(target_values["iiwa_joint_1"])
+    resp.joint_position.data.append(target_values["iiwa_joint_2"])
+    resp.joint_position.data.append(target_values["iiwa_joint_3"])
+    resp.joint_position.data.append(target_values["iiwa_joint_4"])
+    resp.joint_position.data.append(target_values["iiwa_joint_5"])
+    resp.joint_position.data.append(target_values["iiwa_joint_6"])
+    resp.joint_position.data.append(target_values["iiwa_joint_7"])
+    return resp
+
+
 if __name__ == '__main__':
 
     baseServiceName = "/rob9/moveit/"
@@ -232,5 +248,12 @@ if __name__ == '__main__':
     moveToPoseService = rospy.Service(baseServiceName + "move_to_pose", moveitMoveToPoseSrv, moveToPose)
     executeService = rospy.Service(baseServiceName + "execute", moveitExecuteSrv, execute)
     robotStateService = rospy.Service(baseServiceName + "getRobotState", moveitRobotStateSrv, getCurrentState)
+    getJointPositionAtNamedService = rospy.Service(baseServiceName + "getJointPositionAtNamed", moveitGetJointPositionAtNamed, getJointPositionAtNamed)
+
+
+    move_group.set_max_acceleration_scaling_factor(0.001)
+    move_group.set_max_velocity_scaling_factor(0.0001)
+    move_group.set_planning_time(0.1)
+    move_group.set_num_planning_attempts(25)
 
     rospy.spin()
