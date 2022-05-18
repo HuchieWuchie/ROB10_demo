@@ -398,8 +398,9 @@ if __name__ == '__main__':
 
                 loc_client = LocationClient()
                 goal_location = loc_client.getLocation().flatten()
-                goal_location[0] = 0.3
-                goal_location[1] = -0.1
+                #goal_location[0] = -0.1
+                #goal_location[1] = -0.6
+                #goal_location[2] = 1.3
 
                 _, _, rotMatGiver2World = transform.getTransform("giver", "world")
                 goal_orientation_world = np.matmul(np.linalg.inv(rotMatGiver2World), goal_orientation_giver)
@@ -423,8 +424,9 @@ if __name__ == '__main__':
                 grasp_group.sortByScore()
 
                 for count_grasp, grasp in enumerate(grasp_group):
-                    print(count_grasp)
-
+                    print("=========================================")
+                    #print(count_grasp)
+                    valid_waypoints = [0, 0, 0]
                     waypoint = computeWaypoint(grasp, offset = 0.1)
                     #print("Computed waypoint")
                     waypoint_msg = waypoint.toPoseMsg()
@@ -435,15 +437,18 @@ if __name__ == '__main__':
                     pub_waypoint.publish(waypoint.toPoseStampedMsg())
                     valid_waypoint, state_waypoint = moveit.getInverseKinematicsSolution(state_ready, waypoint_msg)
                     #print("Valid waypoint: ", valid_waypoint)
-                    print("State waypoint: ", state_waypoint)
+                    #print("State waypoint: ", state_waypoint)
                     if valid_waypoint:
+                        valid_waypoints = [1, 0, 0]
+                        print("Grasp number ", count_grasp, " valid waypoints ", valid_waypoints)
                         grasp_msg = grasp.toPoseMsg()
                         #plan_found_waypoint_to_grasp, plan_grasp = moveit.planFromPoseToPose(waypoint_msg, grasp_msg)
                         valid_grasp, state_grasp = moveit.getInverseKinematicsSolution(state_waypoint.solution, grasp_msg)
-                        print("Got state grasp")
+                        #print("Got state grasp")
 
                         if valid_grasp:
-
+                            valid_waypoints = [1, 1, 0]
+                            print("Grasp number ", count_grasp, " valid waypoints ", valid_waypoints)
                             pub_waypoint.publish(waypoint.toPoseStampedMsg())
                             pub_grasp.publish(grasp.toPoseStampedMsg())
 
@@ -493,7 +498,7 @@ if __name__ == '__main__':
                             transform.visualizeTransform(ee_tf, "goal_EE_pose")
 
                             valid_handover, state_handover = moveit.getInverseKinematicsSolution(state_ready, ee_pose)
-                            print("got state handover ", valid_handover)
+                            #print("got state handover ", valid_handover)
                             # call planToPose with ee_goal_msg
                             """
                             i = 0
@@ -509,9 +514,10 @@ if __name__ == '__main__':
                             """
 
 
-                            print("Executing trajectory")
-
+                            #print("Executing trajectory")
                             if valid_handover:
+                                valid_waypoints = [1, 1, 1]
+                                print("Grasp number ", count_grasp, " valid waypoints ", valid_waypoints)
                             #if plan_found_handover:
                                 pos = grasp.position.getVector()
                                 rot = grasp.orientation.getRotationMatrix()

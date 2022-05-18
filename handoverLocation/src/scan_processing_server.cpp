@@ -15,6 +15,7 @@
 #include "ros/ros.h"
 #include "tf2_ros/static_transform_broadcaster.h"
 #include "tf2/LinearMath/Quaternion.h"
+ #include <tf/transform_listener.h>
 #include "sensor_msgs/LaserScan.h"
 #include "geometry_msgs/PointStamped.h"
 
@@ -47,6 +48,7 @@ class ScannerServer{
     float angle_increment;
     float angle_min;
     geometry_msgs::PointStamped receiver;
+    tf::TransformListener listener;
     //sensor_msgs::LaserScan processed_scan;
 
     void scanCallback(const sensor_msgs::LaserScan::ConstPtr& msg){
@@ -70,9 +72,23 @@ class ScannerServer{
 
     void add_giver_frame(geometry_msgs::Point& p){
      // TRANSFORM THE POINT TO THE LINK_0 FRAME
+     geometry_msgs::PointStamped laser_point, iiwa_link_0_point;
+     laser_point.header.frame_id = "laser";
+     laser_point.header.stamp = ros::Time();
+     laser_point.point = p;
+
+     try{
+       listener.transformPoint("iiwa_link_0", laser_point, iiwa_link_0_point);
+     }
+     catch(tf::TransformException& ex){
+       ROS_ERROR("Received an exception trying to transform a point from \"laser\" to \"iiwa_link_0\": %s", ex.what());
+     }
+
+
      geometry_msgs::Point p_transformed;
-     p_transformed.x = p.x + 0.332;
-     p_transformed.y = p.y + 0.179;
+     p_transformed = iiwa_link_0_point.point;
+     //p_transformed.x = p.x + 0.332;
+     //p_transformed.y = p.y + 0.179;
 
      // CALCULATE ANGLE
      float hypotenuse = sqrt(pow(p_transformed.x, 2.0f) + pow(p_transformed.y, 2.0f));

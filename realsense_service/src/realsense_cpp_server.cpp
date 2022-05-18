@@ -159,10 +159,10 @@ class RealsenseServer{
 
 void RealsenseServer::initializeRealsense(){
     //SOURCE - https://github.com/IntelRealSense/librealsense/issues/5052
-    std::cout << "resetting a device" << std::endl;
-    rs2::context ctx;
-    rs2::device dev = ctx.query_devices().front(); // Reset the first device
-    dev.hardware_reset();
+    //std::cout << "resetting a device" << std::endl;
+    //rs2::context ctx;
+    //rs2::device dev = ctx.query_devices().front(); // Reset the first device
+    //dev.hardware_reset();
     std::cout << "initializing" << std::endl;
     pipe.start(cfg);
     //DROP STARTUP FRAMES
@@ -174,12 +174,6 @@ void RealsenseServer::initializeRealsense(){
 }
 
 void RealsenseServer::update(){
-    //pipe.start(cfg);
-    //DROP STARTUP FRAMES
-    //for(int i = 0; i < 50; i++){
-      //pipe.wait_for_frames();
-    //}
-    //pipe.start()
     ros::Time time_now = ros::Time::now();
     std::cout<<"[" << time_now <<"] Updating statics "<<std::endl;
     rs2::frameset frames = pipe.wait_for_frames();
@@ -198,7 +192,6 @@ void RealsenseServer::update(){
 
       RealsenseServer::generateStatics();
     }
-    //pipe.stop();
     std::cout << "publishing" << std::endl;
 }
 
