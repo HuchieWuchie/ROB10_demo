@@ -11,7 +11,7 @@
   <arg name="robot_description" default="robot_description"/>
 
   <!-- Loads the URDF with the given hardware interface and robot name into the ROS Parameter Server -->
-  <param if="$(arg load_robot_description)" name="$(arg robot_description)" command="xacro  '$(find rob10)/urdf/iiwa_noPtu_setup.urdf.xacro'"/>
+  <param if="$(arg load_robot_description)" name="$(arg robot_description)" command="xacro  '$(find rob10)/urdf/iiwa_noPtu_setup_v2.urdf.xacro'"/>
   <!-- <group if="$(arg load_robot_description)">
     <include file="$(find iiwa_description)/launch/$(arg model)_upload.launch">
       <arg name="hardware_interface" value="$(arg hardware_interface)"/>

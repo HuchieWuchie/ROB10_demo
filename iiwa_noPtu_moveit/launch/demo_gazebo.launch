@@ -25,7 +25,7 @@
   <arg name="gazebo_gui" default="true"/>
   <arg name="paused" default="false"/>
   <!-- By default, use the urdf location provided from the package -->
-  <arg name="urdf_path" default="$(find rob10)/urdf/iiwa_noPtu_setup.urdf.xacro"/>
+  <arg name="urdf_path" default="$(find rob10)/urdf/iiwa_noPtu_setup_v2.urdf.xacro"/>
 
   <!-- launch the gazebo simulator and spawn the robot -->
   <include file="$(find iiwa_noPtu_moveit)/launch/gazebo.launch" >

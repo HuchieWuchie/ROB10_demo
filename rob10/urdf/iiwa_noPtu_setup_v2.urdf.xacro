@@ -40,7 +40,7 @@
   </joint>
 
   <!-- SCANNER  -->
-  <!--<link name="laser">
+  <link name="laser">
     <visual>
       <geometry>
         <box size="0.06 0.06 0.06"/>
@@ -59,7 +59,7 @@
   <joint name="table_scanner_joint" type="fixed">
     <parent link="table"/>
     <child link="laser"/>
-    <origin xyz="0.43 -0.02 0.475" rpy="0 0 0"/>
+    <origin xyz="0.325 -0.535 0.4" rpy="0 0 -1.57079"/>
   </joint> -->
 
   <!-- ROBOT PLATE -->

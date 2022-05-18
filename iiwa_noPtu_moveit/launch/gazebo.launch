@@ -2,7 +2,7 @@
 <launch>
   <arg name="paused" default="false"/>
   <arg name="gazebo_gui" default="true"/>
-  <arg name="urdf_path" default="$(find rob10)/urdf/iiwa_noPtu_setup.urdf.xacro"/>
+  <arg name="urdf_path" default="$(find rob10)/urdf/iiwa_noPtu_setup_v2.urdf.xacro"/>
 
   <!-- startup simulated world -->
   <include file="$(find gazebo_ros)/launch/empty_world.launch">

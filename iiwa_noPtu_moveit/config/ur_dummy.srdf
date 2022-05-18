@@ -65,7 +65,6 @@
     <disable_collisions link1="connector_box_camera" link2="palm" reason="Never" />
     <disable_collisions link1="connector_box_camera" link2="ptu_camera_link" reason="Adjacent" />
     <disable_collisions link1="connector_box_camera" link2="right_ee_link" reason="Never" />
-    <disable_collisions link1="connector_box_camera" link2="robotPlateCorner" reason="Never" />
     <disable_collisions link1="connector_box_camera" link2="s_connector_cylinder" reason="Never" />
     <disable_collisions link1="connector_box_camera" link2="s_connector_plate" reason="Default" />
     <disable_collisions link1="finger_1_link_0" link2="finger_1_link_1" reason="Adjacent" />
@@ -90,7 +89,7 @@
     <disable_collisions link1="finger_1_link_0" link2="palm" reason="Adjacent" />
     <disable_collisions link1="finger_1_link_0" link2="ptu_camera_link" reason="Never" />
     <disable_collisions link1="finger_1_link_0" link2="right_ee_link" reason="Never" />
-    <disable_collisions link1="finger_1_link_0" link2="robotPlateCorner" reason="Never" />
+    <disable_collisions link1="finger_1_link_0" link2="s_connector_cylinder" reason="User" />
     <disable_collisions link1="finger_1_link_0" link2="s_connector_plate" reason="Never" />
     <disable_collisions link1="finger_1_link_1" link2="finger_1_link_2" reason="Adjacent" />
     <disable_collisions link1="finger_1_link_1" link2="finger_1_link_3" reason="User" />
@@ -103,6 +102,7 @@
     <disable_collisions link1="finger_1_link_1" link2="finger_middle_link_2" reason="User" />
     <disable_collisions link1="finger_1_link_1" link2="finger_middle_link_3" reason="User" />
     <disable_collisions link1="finger_1_link_1" link2="gripper_connector_box" reason="Default" />
+    <disable_collisions link1="finger_1_link_1" link2="iiwa_link_1" reason="Never" />
     <disable_collisions link1="finger_1_link_1" link2="iiwa_link_2" reason="Never" />
     <disable_collisions link1="finger_1_link_1" link2="iiwa_link_3" reason="Never" />
     <disable_collisions link1="finger_1_link_1" link2="iiwa_link_4" reason="Never" />
@@ -112,7 +112,6 @@
     <disable_collisions link1="finger_1_link_1" link2="palm" reason="Default" />
     <disable_collisions link1="finger_1_link_1" link2="ptu_camera_link" reason="Never" />
     <disable_collisions link1="finger_1_link_1" link2="right_ee_link" reason="Never" />
-    <disable_collisions link1="finger_1_link_1" link2="robotPlateCorner" reason="Never" />
     <disable_collisions link1="finger_1_link_1" link2="s_connector_cylinder" reason="Never" />
     <disable_collisions link1="finger_1_link_1" link2="s_connector_plate" reason="Never" />
     <disable_collisions link1="finger_1_link_2" link2="finger_1_link_3" reason="Adjacent" />
@@ -125,6 +124,7 @@
     <disable_collisions link1="finger_1_link_2" link2="finger_middle_link_2" reason="User" />
     <disable_collisions link1="finger_1_link_2" link2="finger_middle_link_3" reason="User" />
     <disable_collisions link1="finger_1_link_2" link2="gripper_connector_box" reason="Never" />
+    <disable_collisions link1="finger_1_link_2" link2="iiwa_link_1" reason="Never" />
     <disable_collisions link1="finger_1_link_2" link2="iiwa_link_2" reason="Never" />
     <disable_collisions link1="finger_1_link_2" link2="iiwa_link_3" reason="Never" />
     <disable_collisions link1="finger_1_link_2" link2="iiwa_link_4" reason="Never" />
@@ -134,7 +134,6 @@
     <disable_collisions link1="finger_1_link_2" link2="palm" reason="User" />
     <disable_collisions link1="finger_1_link_2" link2="ptu_camera_link" reason="Never" />
     <disable_collisions link1="finger_1_link_2" link2="right_ee_link" reason="Never" />
-    <disable_collisions link1="finger_1_link_2" link2="robotPlateCorner" reason="Never" />
     <disable_collisions link1="finger_1_link_2" link2="s_connector_cylinder" reason="User" />
     <disable_collisions link1="finger_1_link_2" link2="s_connector_plate" reason="Never" />
     <disable_collisions link1="finger_1_link_3" link2="finger_2_link_0" reason="Never" />
@@ -154,8 +153,8 @@
     <disable_collisions link1="finger_1_link_3" link2="iiwa_link_6" reason="Never" />
     <disable_collisions link1="finger_1_link_3" link2="iiwa_link_7" reason="Never" />
     <disable_collisions link1="finger_1_link_3" link2="palm" reason="User" />
+    <disable_collisions link1="finger_1_link_3" link2="ptu_camera_link" reason="User" />
     <disable_collisions link1="finger_1_link_3" link2="right_ee_link" reason="Never" />
-    <disable_collisions link1="finger_1_link_3" link2="robotPlateCorner" reason="Never" />
     <disable_collisions link1="finger_1_link_3" link2="s_connector_cylinder" reason="User" />
     <disable_collisions link1="finger_1_link_3" link2="s_connector_plate" reason="User" />
     <disable_collisions link1="finger_2_link_0" link2="finger_2_link_1" reason="Adjacent" />
@@ -173,11 +172,9 @@
     <disable_collisions link1="finger_2_link_0" link2="iiwa_link_5" reason="Never" />
     <disable_collisions link1="finger_2_link_0" link2="iiwa_link_6" reason="Never" />
     <disable_collisions link1="finger_2_link_0" link2="iiwa_link_7" reason="Never" />
-    <disable_collisions link1="finger_2_link_0" link2="laser" reason="Never" />
     <disable_collisions link1="finger_2_link_0" link2="palm" reason="Adjacent" />
     <disable_collisions link1="finger_2_link_0" link2="ptu_camera_link" reason="Never" />
     <disable_collisions link1="finger_2_link_0" link2="right_ee_link" reason="Never" />
-    <disable_collisions link1="finger_2_link_0" link2="robotPlateCorner" reason="Never" />
     <disable_collisions link1="finger_2_link_0" link2="s_connector_cylinder" reason="Never" />
     <disable_collisions link1="finger_2_link_0" link2="s_connector_plate" reason="Never" />
     <disable_collisions link1="finger_2_link_1" link2="finger_2_link_2" reason="Adjacent" />
@@ -196,7 +193,6 @@
     <disable_collisions link1="finger_2_link_1" link2="palm" reason="Default" />
     <disable_collisions link1="finger_2_link_1" link2="ptu_camera_link" reason="Never" />
     <disable_collisions link1="finger_2_link_1" link2="right_ee_link" reason="Never" />
-    <disable_collisions link1="finger_2_link_1" link2="robotPlateCorner" reason="Never" />
     <disable_collisions link1="finger_2_link_1" link2="s_connector_cylinder" reason="Never" />
     <disable_collisions link1="finger_2_link_1" link2="s_connector_plate" reason="Never" />
     <disable_collisions link1="finger_2_link_2" link2="finger_2_link_3" reason="Adjacent" />
@@ -205,16 +201,15 @@
     <disable_collisions link1="finger_2_link_2" link2="finger_middle_link_2" reason="User" />
     <disable_collisions link1="finger_2_link_2" link2="finger_middle_link_3" reason="User" />
     <disable_collisions link1="finger_2_link_2" link2="gripper_connector_box" reason="Never" />
+    <disable_collisions link1="finger_2_link_2" link2="iiwa_link_2" reason="Never" />
     <disable_collisions link1="finger_2_link_2" link2="iiwa_link_3" reason="Never" />
     <disable_collisions link1="finger_2_link_2" link2="iiwa_link_4" reason="Never" />
     <disable_collisions link1="finger_2_link_2" link2="iiwa_link_5" reason="Never" />
     <disable_collisions link1="finger_2_link_2" link2="iiwa_link_6" reason="Never" />
     <disable_collisions link1="finger_2_link_2" link2="iiwa_link_7" reason="Never" />
-    <disable_collisions link1="finger_2_link_2" link2="laser" reason="Never" />
     <disable_collisions link1="finger_2_link_2" link2="palm" reason="User" />
     <disable_collisions link1="finger_2_link_2" link2="ptu_camera_link" reason="Never" />
     <disable_collisions link1="finger_2_link_2" link2="right_ee_link" reason="Never" />
-    <disable_collisions link1="finger_2_link_2" link2="robotPlateCorner" reason="Never" />
     <disable_collisions link1="finger_2_link_2" link2="s_connector_cylinder" reason="User" />
     <disable_collisions link1="finger_2_link_2" link2="s_connector_plate" reason="Never" />
     <disable_collisions link1="finger_2_link_3" link2="finger_middle_link_0" reason="Never" />
@@ -222,16 +217,16 @@
     <disable_collisions link1="finger_2_link_3" link2="finger_middle_link_2" reason="User" />
     <disable_collisions link1="finger_2_link_3" link2="finger_middle_link_3" reason="User" />
     <disable_collisions link1="finger_2_link_3" link2="gripper_connector_box" reason="User" />
+    <disable_collisions link1="finger_2_link_3" link2="iiwa_link_1" reason="Never" />
+    <disable_collisions link1="finger_2_link_3" link2="iiwa_link_2" reason="Never" />
     <disable_collisions link1="finger_2_link_3" link2="iiwa_link_3" reason="Never" />
     <disable_collisions link1="finger_2_link_3" link2="iiwa_link_4" reason="Never" />
     <disable_collisions link1="finger_2_link_3" link2="iiwa_link_5" reason="Never" />
     <disable_collisions link1="finger_2_link_3" link2="iiwa_link_6" reason="Never" />
     <disable_collisions link1="finger_2_link_3" link2="iiwa_link_7" reason="Never" />
-    <disable_collisions link1="finger_2_link_3" link2="laser" reason="Never" />
     <disable_collisions link1="finger_2_link_3" link2="palm" reason="User" />
     <disable_collisions link1="finger_2_link_3" link2="ptu_camera_link" reason="Never" />
     <disable_collisions link1="finger_2_link_3" link2="right_ee_link" reason="Never" />
-    <disable_collisions link1="finger_2_link_3" link2="robotPlateCorner" reason="Never" />
     <disable_collisions link1="finger_2_link_3" link2="s_connector_cylinder" reason="User" />
     <disable_collisions link1="finger_2_link_3" link2="s_connector_plate" reason="User" />
     <disable_collisions link1="finger_middle_link_0" link2="finger_middle_link_1" reason="Adjacent" />
@@ -245,16 +240,15 @@
     <disable_collisions link1="finger_middle_link_0" link2="iiwa_link_5" reason="Never" />
     <disable_collisions link1="finger_middle_link_0" link2="iiwa_link_6" reason="Never" />
     <disable_collisions link1="finger_middle_link_0" link2="iiwa_link_7" reason="Never" />
-    <disable_collisions link1="finger_middle_link_0" link2="laser" reason="Never" />
     <disable_collisions link1="finger_middle_link_0" link2="palm" reason="Adjacent" />
     <disable_collisions link1="finger_middle_link_0" link2="ptu_camera_link" reason="Never" />
     <disable_collisions link1="finger_middle_link_0" link2="right_ee_link" reason="Never" />
-    <disable_collisions link1="finger_middle_link_0" link2="robotPlateCorner" reason="Never" />
     <disable_collisions link1="finger_middle_link_0" link2="s_connector_cylinder" reason="Never" />
     <disable_collisions link1="finger_middle_link_0" link2="s_connector_plate" reason="Never" />
     <disable_collisions link1="finger_middle_link_1" link2="finger_middle_link_2" reason="Adjacent" />
     <disable_collisions link1="finger_middle_link_1" link2="finger_middle_link_3" reason="User" />
     <disable_collisions link1="finger_middle_link_1" link2="gripper_connector_box" reason="Never" />
+    <disable_collisions link1="finger_middle_link_1" link2="iiwa_link_1" reason="Never" />
     <disable_collisions link1="finger_middle_link_1" link2="iiwa_link_2" reason="Never" />
     <disable_collisions link1="finger_middle_link_1" link2="iiwa_link_3" reason="Never" />
     <disable_collisions link1="finger_middle_link_1" link2="iiwa_link_4" reason="Never" />
@@ -264,11 +258,11 @@
     <disable_collisions link1="finger_middle_link_1" link2="palm" reason="Default" />
     <disable_collisions link1="finger_middle_link_1" link2="ptu_camera_link" reason="Never" />
     <disable_collisions link1="finger_middle_link_1" link2="right_ee_link" reason="Never" />
-    <disable_collisions link1="finger_middle_link_1" link2="robotPlateCorner" reason="Never" />
     <disable_collisions link1="finger_middle_link_1" link2="s_connector_cylinder" reason="Never" />
     <disable_collisions link1="finger_middle_link_1" link2="s_connector_plate" reason="Never" />
     <disable_collisions link1="finger_middle_link_2" link2="finger_middle_link_3" reason="Adjacent" />
     <disable_collisions link1="finger_middle_link_2" link2="gripper_connector_box" reason="Never" />
+    <disable_collisions link1="finger_middle_link_2" link2="iiwa_link_1" reason="Never" />
     <disable_collisions link1="finger_middle_link_2" link2="iiwa_link_2" reason="Never" />
     <disable_collisions link1="finger_middle_link_2" link2="iiwa_link_3" reason="Never" />
     <disable_collisions link1="finger_middle_link_2" link2="iiwa_link_4" reason="Never" />
@@ -278,7 +272,6 @@
     <disable_collisions link1="finger_middle_link_2" link2="palm" reason="User" />
     <disable_collisions link1="finger_middle_link_2" link2="ptu_camera_link" reason="Never" />
     <disable_collisions link1="finger_middle_link_2" link2="right_ee_link" reason="Never" />
-    <disable_collisions link1="finger_middle_link_2" link2="robotPlateCorner" reason="Never" />
     <disable_collisions link1="finger_middle_link_2" link2="s_connector_cylinder" reason="User" />
     <disable_collisions link1="finger_middle_link_2" link2="s_connector_plate" reason="Never" />
     <disable_collisions link1="finger_middle_link_3" link2="gripper_connector_box" reason="User" />
@@ -292,9 +285,9 @@
     <disable_collisions link1="finger_middle_link_3" link2="palm" reason="User" />
     <disable_collisions link1="finger_middle_link_3" link2="ptu_camera_link" reason="Never" />
     <disable_collisions link1="finger_middle_link_3" link2="right_ee_link" reason="Never" />
-    <disable_collisions link1="finger_middle_link_3" link2="robotPlateCorner" reason="Never" />
     <disable_collisions link1="finger_middle_link_3" link2="s_connector_cylinder" reason="User" />
     <disable_collisions link1="finger_middle_link_3" link2="s_connector_plate" reason="User" />
+    <disable_collisions link1="gripper_connector_box" link2="iiwa_link_1" reason="Never" />
     <disable_collisions link1="gripper_connector_box" link2="iiwa_link_2" reason="Never" />
     <disable_collisions link1="gripper_connector_box" link2="iiwa_link_3" reason="Never" />
     <disable_collisions link1="gripper_connector_box" link2="iiwa_link_4" reason="Never" />
@@ -304,7 +297,6 @@
     <disable_collisions link1="gripper_connector_box" link2="palm" reason="Default" />
     <disable_collisions link1="gripper_connector_box" link2="ptu_camera_link" reason="Never" />
     <disable_collisions link1="gripper_connector_box" link2="right_ee_link" reason="Never" />
-    <disable_collisions link1="gripper_connector_box" link2="robotPlateCorner" reason="Never" />
     <disable_collisions link1="gripper_connector_box" link2="s_connector_cylinder" reason="Never" />
     <disable_collisions link1="gripper_connector_box" link2="s_connector_plate" reason="Adjacent" />
     <disable_collisions link1="iiwa_link_0" link2="iiwa_link_1" reason="Adjacent" />
@@ -313,8 +305,7 @@
     <disable_collisions link1="iiwa_link_0" link2="iiwa_link_4" reason="Never" />
     <disable_collisions link1="iiwa_link_0" link2="laser" reason="Never" />
     <disable_collisions link1="iiwa_link_0" link2="right_ee_link" reason="Never" />
-    <disable_collisions link1="iiwa_link_0" link2="robotPlate" reason="Default" />
-    <disable_collisions link1="iiwa_link_0" link2="robotPlateCorner" reason="Adjacent" />
+    <disable_collisions link1="iiwa_link_0" link2="robotPlate" reason="Adjacent" />
     <disable_collisions link1="iiwa_link_0" link2="table" reason="Never" />
     <disable_collisions link1="iiwa_link_1" link2="iiwa_link_2" reason="Adjacent" />
     <disable_collisions link1="iiwa_link_1" link2="iiwa_link_3" reason="Never" />
@@ -323,10 +314,10 @@
     <disable_collisions link1="iiwa_link_1" link2="iiwa_link_6" reason="Never" />
     <disable_collisions link1="iiwa_link_1" link2="iiwa_link_7" reason="Never" />
     <disable_collisions link1="iiwa_link_1" link2="laser" reason="Never" />
+    <disable_collisions link1="iiwa_link_1" link2="palm" reason="Never" />
     <disable_collisions link1="iiwa_link_1" link2="ptu_camera_link" reason="Never" />
     <disable_collisions link1="iiwa_link_1" link2="right_ee_link" reason="Never" />
     <disable_collisions link1="iiwa_link_1" link2="robotPlate" reason="Never" />
-    <disable_collisions link1="iiwa_link_1" link2="robotPlateCorner" reason="Never" />
     <disable_collisions link1="iiwa_link_1" link2="s_connector_cylinder" reason="Never" />
     <disable_collisions link1="iiwa_link_1" link2="s_connector_plate" reason="Never" />
     <disable_collisions link1="iiwa_link_1" link2="table" reason="Never" />
@@ -340,7 +331,6 @@
     <disable_collisions link1="iiwa_link_2" link2="ptu_camera_link" reason="Never" />
     <disable_collisions link1="iiwa_link_2" link2="right_ee_link" reason="Never" />
     <disable_collisions link1="iiwa_link_2" link2="robotPlate" reason="Never" />
-    <disable_collisions link1="iiwa_link_2" link2="robotPlateCorner" reason="Never" />
     <disable_collisions link1="iiwa_link_2" link2="s_connector_cylinder" reason="Never" />
     <disable_collisions link1="iiwa_link_2" link2="s_connector_plate" reason="Never" />
     <disable_collisions link1="iiwa_link_2" link2="table" reason="Never" />
@@ -353,7 +343,6 @@
     <disable_collisions link1="iiwa_link_3" link2="ptu_camera_link" reason="Never" />
     <disable_collisions link1="iiwa_link_3" link2="right_ee_link" reason="Never" />
     <disable_collisions link1="iiwa_link_3" link2="robotPlate" reason="Never" />
-    <disable_collisions link1="iiwa_link_3" link2="robotPlateCorner" reason="Never" />
     <disable_collisions link1="iiwa_link_3" link2="s_connector_cylinder" reason="Never" />
     <disable_collisions link1="iiwa_link_3" link2="s_connector_plate" reason="Never" />
     <disable_collisions link1="iiwa_link_3" link2="table" reason="Never" />
@@ -365,7 +354,6 @@
     <disable_collisions link1="iiwa_link_4" link2="ptu_camera_link" reason="Never" />
     <disable_collisions link1="iiwa_link_4" link2="right_ee_link" reason="Never" />
     <disable_collisions link1="iiwa_link_4" link2="robotPlate" reason="Never" />
-    <disable_collisions link1="iiwa_link_4" link2="robotPlateCorner" reason="Never" />
     <disable_collisions link1="iiwa_link_4" link2="s_connector_cylinder" reason="Never" />
     <disable_collisions link1="iiwa_link_4" link2="s_connector_plate" reason="Never" />
     <disable_collisions link1="iiwa_link_5" link2="iiwa_link_6" reason="Adjacent" />
@@ -373,43 +361,31 @@
     <disable_collisions link1="iiwa_link_5" link2="palm" reason="Never" />
     <disable_collisions link1="iiwa_link_5" link2="ptu_camera_link" reason="Never" />
     <disable_collisions link1="iiwa_link_5" link2="right_ee_link" reason="Never" />
-    <disable_collisions link1="iiwa_link_5" link2="robotPlateCorner" reason="Never" />
     <disable_collisions link1="iiwa_link_5" link2="s_connector_cylinder" reason="Never" />
     <disable_collisions link1="iiwa_link_5" link2="s_connector_plate" reason="Never" />
     <disable_collisions link1="iiwa_link_6" link2="iiwa_link_7" reason="Adjacent" />
     <disable_collisions link1="iiwa_link_6" link2="palm" reason="Never" />
     <disable_collisions link1="iiwa_link_6" link2="ptu_camera_link" reason="Never" />
     <disable_collisions link1="iiwa_link_6" link2="right_ee_link" reason="Never" />
-    <disable_collisions link1="iiwa_link_6" link2="robotPlateCorner" reason="Never" />
     <disable_collisions link1="iiwa_link_6" link2="s_connector_cylinder" reason="Never" />
     <disable_collisions link1="iiwa_link_6" link2="s_connector_plate" reason="Never" />
     <disable_collisions link1="iiwa_link_7" link2="palm" reason="Never" />
     <disable_collisions link1="iiwa_link_7" link2="ptu_camera_link" reason="Never" />
     <disable_collisions link1="iiwa_link_7" link2="right_ee_link" reason="Never" />
-    <disable_collisions link1="iiwa_link_7" link2="robotPlateCorner" reason="Never" />
     <disable_collisions link1="iiwa_link_7" link2="s_connector_cylinder" reason="Never" />
     <disable_collisions link1="iiwa_link_7" link2="s_connector_plate" reason="Adjacent" />
-    <disable_collisions link1="laser" link2="right_ee_link" reason="Never" />
     <disable_collisions link1="laser" link2="robotPlate" reason="Never" />
-    <disable_collisions link1="laser" link2="robotPlateCorner" reason="Never" />
     <disable_collisions link1="laser" link2="table" reason="Adjacent" />
     <disable_collisions link1="palm" link2="ptu_camera_link" reason="Never" />
     <disable_collisions link1="palm" link2="right_ee_link" reason="Adjacent" />
-    <disable_collisions link1="palm" link2="robotPlateCorner" reason="Never" />
     <disable_collisions link1="palm" link2="s_connector_cylinder" reason="Adjacent" />
     <disable_collisions link1="palm" link2="s_connector_plate" reason="Never" />
     <disable_collisions link1="ptu_camera_link" link2="right_ee_link" reason="Never" />
-    <disable_collisions link1="ptu_camera_link" link2="robotPlateCorner" reason="Never" />
     <disable_collisions link1="ptu_camera_link" link2="s_connector_cylinder" reason="Never" />
     <disable_collisions link1="ptu_camera_link" link2="s_connector_plate" reason="Adjacent" />
     <disable_collisions link1="right_ee_link" link2="robotPlate" reason="Never" />
-    <disable_collisions link1="right_ee_link" link2="robotPlateCorner" reason="Never" />
     <disable_collisions link1="right_ee_link" link2="s_connector_cylinder" reason="Never" />
     <disable_collisions link1="right_ee_link" link2="s_connector_plate" reason="Never" />
-    <disable_collisions link1="robotPlate" link2="robotPlateCorner" reason="Never" />
     <disable_collisions link1="robotPlate" link2="table" reason="Adjacent" />
-    <disable_collisions link1="robotPlateCorner" link2="s_connector_cylinder" reason="Never" />
-    <disable_collisions link1="robotPlateCorner" link2="s_connector_plate" reason="Never" />
-    <disable_collisions link1="robotPlateCorner" link2="table" reason="Adjacent" />
     <disable_collisions link1="s_connector_cylinder" link2="s_connector_plate" reason="Adjacent" />
 </robot>
