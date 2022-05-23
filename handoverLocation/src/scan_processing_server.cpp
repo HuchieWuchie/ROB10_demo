@@ -32,9 +32,9 @@ class ScannerServer{
     bool receiver_detected;
 
     void publishReceiverPose(){
-      receiver.header.stamp = ros::Time::now();
-      receiver.header.frame_id = "world";
-      pub_receiver_point.publish(receiver);
+      receiver_world.header.stamp = ros::Time::now();
+      receiver_world.header.frame_id = "world";
+      pub_receiver_point.publish(receiver_world);
     }
 
   private:
@@ -47,12 +47,14 @@ class ScannerServer{
     std::vector<float> scan;
     float angle_increment;
     float angle_min;
-    geometry_msgs::PointStamped receiver;
+    geometry_msgs::PointStamped receiver_laser;
+    geometry_msgs::PointStamped receiver_world;
+    geometry_msgs::PointStamped receiver_giver;
     tf::TransformListener listener;
     //sensor_msgs::LaserScan processed_scan;
 
     void scanCallback(const sensor_msgs::LaserScan::ConstPtr& msg){
-      std::cout<<"callback"<<std::endl;
+      //std::cout<<"callback"<<std::endl;
       scan = msg->ranges;
       angle_min = msg->angle_min;
       angle_increment = msg->angle_increment;
@@ -70,15 +72,16 @@ class ScannerServer{
      return median;
    }
 
-    void add_giver_frame(geometry_msgs::Point& p){
+    void add_giver_frame(geometry_msgs::PointStamped& p){
      // TRANSFORM THE POINT TO THE LINK_0 FRAME
      geometry_msgs::PointStamped laser_point, iiwa_link_0_point;
-     laser_point.header.frame_id = "laser";
-     laser_point.header.stamp = ros::Time();
-     laser_point.point = p;
+     //laser_point.header.frame_id = "laser";
+     //laser_point.header.stamp = ros::Time();
+     //laser_point.point = p.point;
 
      try{
-       listener.transformPoint("iiwa_link_0", laser_point, iiwa_link_0_point);
+       //listener.transformPoint("iiwa_link_0", laser_point, iiwa_link_0_point);
+       listener.transformPoint("iiwa_link_0", p, iiwa_link_0_point);
      }
      catch(tf::TransformException& ex){
        ROS_ERROR("Received an exception trying to transform a point from \"laser\" to \"iiwa_link_0\": %s", ex.what());
@@ -147,15 +150,33 @@ class ScannerServer{
         //std::cout<<"angle "<<angle<<std::endl;
 
         // POLAR TO CARTESIAN + TRANSFORM TO WORLD FRAME
-        receiver.point.x = median_range * cos(angle);
-        receiver.point.y = median_range * sin(angle);
-        receiver.point.z = 1.3f;
-        res.receiver = receiver.point;
+        receiver_laser.header.frame_id = "laser";
+        receiver_laser.header.stamp = ros::Time();
+        receiver_laser.point.x = median_range * cos(angle);
+        receiver_laser.point.y = median_range * sin(angle);
+        receiver_laser.point.z = 0.4f;
+        //res.receiver = receiver.point;
         //res.receiver.x = median_range * cos(angle) + 0.43;
         //res.receiver.y = median_range * sin(angle) - 0.02;
         //res.receiver.z = 1.3f;
 
-        add_giver_frame(res.receiver);
+        add_giver_frame(receiver_laser);
+        std::cout<<"Added a giver frame"<<std::endl;
+        sleep(1);
+        try{
+          listener.transformPoint("world", receiver_laser, receiver_world);
+          listener.transformPoint("giver", receiver_laser, receiver_giver);
+        }
+        catch(tf::TransformException& ex){
+          ROS_ERROR("Received an exception trying to transform a point from \"laser\" to \"iiwa_link_0\": %s", ex.what());
+        }
+
+        std::cout<<"receiver_giver"<<receiver_giver<<std::endl;
+        std::cout<<"================="<<std::endl;
+        std::cout<<"receiver_world"<<receiver_world<<std::endl;
+        //res.receiver = receiver_world.point;
+        res.receiver = receiver_giver.point;
+
 
         //processed_scan = *msg;
         //processed_scan.ranges.clear();

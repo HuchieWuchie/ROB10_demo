@@ -8,7 +8,7 @@ import cv2
 import numpy as np
 
 from sensor_msgs.msg import Image
-from std_msgs.msg import Float32, Float32MultiArray, Int32MultiArray, MultiArrayDimension, String
+from std_msgs.msg import Float32, Float32MultiArray, Int32MultiArray, MultiArrayDimension, String, UInt8MultiArray
 
 from cameraService.cameraClient import CameraClient
 from affordance_analyzer.srv import *

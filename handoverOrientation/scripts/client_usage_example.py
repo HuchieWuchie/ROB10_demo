@@ -36,7 +36,7 @@ if __name__ == "__main__":
     pcd = o3d.io.read_point_cloud(os.path.join(path, "pcd.ply"))
     geometry = np.asanyarray(pcd.points)
     img = cv2.imread(os.path.join(path, "img.png"))
-
+    """
     cam = CameraClient()
 
     cam.captureNewScene()
@@ -55,6 +55,7 @@ if __name__ == "__main__":
 
     masks, labels, scores, bboxs = affClient.getAffordanceResult()
     masks = affClient.processMasks(masks, conf_threshold = 0, erode_kernel=(1,1))
+    """
 
     # Select object 5, ladle or 0 for knife
 

@@ -138,7 +138,7 @@ class GraspServer(object):
                     #o3d.visualization.draw_geometries([pcd_downsample,  vis_world_gripper, world_coordinate_frame])
 
 
-                    gripper = createGripper(opening = 0.08, translation = translation, rotation = eeRotMat)
+                    gripper = createGripper(opening = 0.12, translation = translation, rotation = eeRotMat)
                     if self.checkCollisionEnvironment(gripper, local_points) == False:
                         #vis_gripper = visualizeGripper(gripper)
                         #gripper_frame = visualizeFrameMesh(translation, eeRotMat)
@@ -164,7 +164,7 @@ class GraspServer(object):
 
                     translation = s_grasp.copy()
                     translation[2] = translation[2] - depth_value
-                    gripper = createGripper(opening = 0.08, translation = translation, rotation = eeRotMat)
+                    gripper = createGripper(opening = 0.12, translation = translation, rotation = eeRotMat)
                     #vis_gripper = visualizeGripper(gripper)
                     #gripper_frame = visualizeFrameMesh(translation, eeRotMat)
                     #o3d.visualization.draw_geometries([pcd_downsample, vis_gripper, gripper_frame])
@@ -176,6 +176,7 @@ class GraspServer(object):
 
                 translation = s_grasp.copy()
                 translation[2] = s_grasp[2] - depth_values[int(d_count / 2)]
+                #translation[2] = s_grasp[2] - depth_values[min(0, d_count-1)]
 
                 quat = rotEE.as_quat()
                 poses.append([translation[0], translation[1], translation[2],

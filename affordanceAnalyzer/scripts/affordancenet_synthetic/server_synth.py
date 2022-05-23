@@ -20,6 +20,7 @@ import time
 from config import IITAFF
 import os
 from skimage.transform import resize
+from affordanceService.client import AffordanceClient
 
 from affordance_analyzer.srv import *
 from std_msgs.msg import MultiArrayDimension, String
@@ -97,7 +98,10 @@ class AffordanceAnalyzer(object):
         intToLabel = {0: 'class', 1: 'height', 2: 'width'}
         msg = getAffordanceSrvResponse()
 
+        aff_client = AffordanceClient(connected = False)
+
         # constructing mask message
+        """
         for i in range(3):
             dimMsg = MultiArrayDimension()
             dimMsg.label = intToLabel[i]
@@ -108,7 +112,9 @@ class AffordanceAnalyzer(object):
             dimMsg.size = masks.shape[i]
             msg.masks.layout.dim.append(dimMsg)
         masks = masks.flatten().astype(int).tolist()
-        msg.masks.data = masks
+        #msg.masks.data = masks
+        """
+        msg.masks = aff_client.packMasks(masks)
 
         # constructing bounding box message
         msg.bbox.data = bbox.flatten().astype(int).tolist()
