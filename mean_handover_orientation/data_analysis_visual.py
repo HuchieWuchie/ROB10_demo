@@ -78,12 +78,22 @@ if __name__ == '__main__':
         ax = [None, None, None]
         axis_limits = range(-1,1)
         for i in range(3):
+            if i == 0:
+                axis = 'x'
+            elif i == 1:
+                axis = 'y'
+            else:
+                axis = 'z'
+            plot_title = class_id + "\nOriented " + axis + " axes"
             figs[i] = plt.figure()
             ax[i] = figs[i].add_subplot(projection="3d")
-            ax[i].set_title(class_id, fontsize = 40)
+            ax[i].set_title(plot_title, fontsize = 20)
             ax[i].set_xlim(-1, 1)
             ax[i].set_ylim(-1, 1)
             ax[i].set_zlim(-1, 1)
+            ax[i].set_xticklabels([])
+            ax[i].set_yticklabels([])
+            ax[i].set_zticklabels([])
             #ax[i].xaxis.(30)
 
         #fig_x = plt.figure()
@@ -103,5 +113,10 @@ if __name__ == '__main__':
         #fig.add_axes(ax_x)
         #fig.add_axes(ax_y)
         #fig.add_axes(ax_z
-
-        plt.show()
+        filename = "/home/daniel/iiwa_ws/src/ROB10/mean_handover_orientation/axes/" + class_id + "_x.pdf"
+        figs[0].savefig(filename, bbox_inches = 'tight', pad_inches = 0)
+        filename = "/home/daniel/iiwa_ws/src/ROB10/mean_handover_orientation/axes/" + class_id + "_y.pdf"
+        figs[1].savefig(filename, bbox_inches = 'tight', pad_inches = 0)
+        filename = "/home/daniel/iiwa_ws/src/ROB10/mean_handover_orientation/axes/" + class_id + "_z.pdf"
+        figs[2].savefig(filename, bbox_inches = 'tight', pad_inches = 0)
+        #plt.show()
