@@ -56,3 +56,4 @@ __pycache__/
 affordanceAnalyzer/scripts/affordancenet_synthetic/weights.pth
 
 rob10/scripts/experiments/orientation_test/*.ply
+rob10/scripts/experiments/orientation_test/*.npy
