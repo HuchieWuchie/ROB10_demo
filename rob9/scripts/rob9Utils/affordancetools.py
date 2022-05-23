@@ -2,6 +2,104 @@ import numpy as np
 import cv2
 import open3d as o3d
 
+def getAffordancePointCloudBasedOnVariance(pcd):
+    """ Computes 9 points for each affordance, based on standard deviation,
+        present in the point cloud
+
+        Input:
+        pcd             - o3d.geometry.PointCloud()
+
+        Output:
+        pcd_box        - o3d.geometry.PointCloud()
+    """
+
+    affordances, affordance_counts = getPredictedAffordancesInPointCloud(pcd)
+    affordance_counts = affordance_counts / np.linalg.norm(affordance_counts)
+
+    out_points, out_colors = [], []
+    points = np.asanyarray(pcd.points)
+    colors = np.asanyarray(pcd.colors)
+
+    if np.max(colors) <= 1.0:
+        colors = colors * 255
+
+    label_colors = getAffordanceColors()
+
+    first = True
+    for label_count, label_color in enumerate(label_colors):
+        if label_count != 0:
+            if affordance_counts[label_count] > 0.005:
+
+                idx = colors == label_color
+                idx = np.sum(idx, axis = -1) == 3
+
+                if True in idx:
+                    aff_points = points[idx]
+
+                    x_c, y_c, z_c = np.mean(aff_points, axis = 0)
+                    x_std, y_std, z_std = np.std(aff_points, axis = 0) / 2
+
+                    box_points = []
+                    box_points.append([x_c, y_c, z_c]) # centroid
+                    box_points.append([x_c - x_std, y_c - y_std, z_c - z_std])
+                    box_points.append([x_c + x_std, y_c - y_std, z_c - z_std])
+                    box_points.append([x_c - x_std, y_c + y_std, z_c - z_std])
+                    box_points.append([x_c + x_std, y_c + y_std, z_c - z_std])
+                    box_points.append([x_c - x_std, y_c - y_std, z_c + z_std])
+                    box_points.append([x_c + x_std, y_c - y_std, z_c + z_std])
+                    box_points.append([x_c - x_std, y_c + y_std, z_c + z_std])
+                    box_points.append([x_c + x_std, y_c + y_std, z_c + z_std])
+
+                    box_colors = [label_color for i in range(len(box_points))]
+
+                    box_points = np.array(box_points)
+                    box_colors = np.array(box_colors) / 255
+
+                    if first:
+                        out_points = box_points
+                        out_colors = box_colors
+                        first = False
+                    else:
+                        out_points = np.vstack((out_points, box_points))
+                        out_colors = np.vstack((out_colors, box_colors))
+
+    pcd_box = o3d.geometry.PointCloud()
+    pcd_box.points = o3d.utility.Vector3dVector(out_points)
+    pcd_box.colors = o3d.utility.Vector3dVector(out_colors)
+
+    return pcd_box
+
+def getPredictedAffordancesInPointCloud(pcd):
+    """ Input:
+        pcd         - o3d.geometry.PointCloud()
+
+        Output:
+        affordances - list[], one-hot-encoded vector with present affordances.
+        counts      - np.array(), shape(num_affordances), int count of every affordance.
+    """
+
+    label_colors = getAffordanceColors()
+
+    colors = np.asanyarray(pcd.colors)
+    if np.max(colors) <= 1.0:
+        colors = colors * 255
+
+    affordances, counts = [], []
+
+    for label_color in label_colors:
+        idx = colors == label_color
+        idx = np.sum(idx, axis = -1) == 3
+
+        if True in idx:
+            affordances.append(1)
+            counts.append(np.count_nonzero(idx == True))
+        else:
+            affordances.append(0)
+            counts.append(0)
+
+    return affordances, np.array(counts)
+
+
 def getPredictedAffordances(masks, bbox = None):
     """ Input:
         masks       - np.array, shape (affordances, h, w)
@@ -28,7 +126,7 @@ def getAffordanceColors():
     """
 
     colors = [(0,0,0), (0,0,255), (0,255,0), (123, 255, 123), (255, 0, 0),
-                (0, 255, 255), (255, 255, 255), (255, 0, 255), (123, 123, 123), (255, 255, 0), (70, 70, 70), (0,10,0)]
+                (255, 255, 0), (255, 255, 255), (255, 0, 255), (123, 123, 123), (255, 255, 0), (70, 70, 70), (0,10,0)]
 
     return colors
 
@@ -67,12 +165,14 @@ def getAffordanceBoundingBoxes(pcd):
     pcd_colors = np.asanyarray(pcd.colors).astype(np.uint8)
 
     if np.max(pcd_colors) <= 1.0:
-        pcd_colors = pcd_colors
+        pcd_colors = pcd_colors * 255
 
     label_colors = getAffordanceColors()
 
     points = []
     colors = []
+
+    #print(np.unique(pcd_colors, axis = 0))
 
     for color in label_colors:
         idx = pcd_colors == color
@@ -80,8 +180,10 @@ def getAffordanceBoundingBoxes(pcd):
 
         if True in idx:
             aff_points = o3d.utility.Vector3dVector(pcd_points[idx])
-            bbox = np.asanyarray(o3d.geometry.OrientedBoundingBox.create_from_points(aff_points, robust = True).get_box_points())
+            bbox = np.asanyarray(o3d.geometry.OrientedBoundingBox.create_from_points(aff_points).get_box_points())
             bbox_colors = [color for i in range(bbox.shape[0])]
+
+            #print(bbox)
 
             if len(points) == 0:
                 points = bbox
@@ -177,6 +279,8 @@ def getObjectAffordancePointCloud(pcd, masks, uvs):
         return 0
 
     colors = getAffordanceColors()
+    #colors = [(0,0,0), (0,0,255), (0,255,0), (123, 255, 123), (255, 0, 0),
+    #            (255, 255, 0), (255, 255, 255), (255, 0, 255), (123, 123, 123), (0, 255, 255), (70, 70, 70), (0,10,0)]
 
     for count, c in enumerate(colors):
         b, g, r = c
