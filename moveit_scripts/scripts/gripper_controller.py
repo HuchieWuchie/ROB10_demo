@@ -48,7 +48,7 @@ This serves as an example for publishing messages on the 'Robotiq3FGripperRobotO
 
 import rospy
 from robotiq_3f_gripper_articulated_msgs.msg import Robotiq3FGripperRobotOutput
-from std_msgs.msg import Int8
+from std_msgs.msg import Int16
 from datetime import datetime
 
 def genCommand(int, command):
@@ -82,37 +82,40 @@ def genCommand(int, command):
     if int == 7:
         command.rMOD = 3
 
-    """
-    # If the command entered is a int, assign this value to rPRA
-    try:
-        command.rPRA = int(char)
-        if command.rPRA > 255:
-            command.rPRA = 255
-        if command.rPRA < 0:
-            command.rPRA = 0
-    except ValueError:
-        pass
-
-    if char == 'f':
+    # increase speed
+    if int == 10:
         command.rSPA += 25
         if command.rSPA > 255:
             command.rSPA = 255
 
-    if char == 'l':
+    # decrease speed
+    if int == 20:
         command.rSPA -= 25
         if command.rSPA < 0:
             command.rSPA = 0
 
-    if char == 'i':
+    # increase force
+    if int == 30:
         command.rFRA += 25
         if command.rFRA > 255:
             command.rFRA = 255
 
-    if char == 'd':
+    # decrease force
+    if int == 40:
         command.rFRA -= 25
         if command.rFRA < 0:
             command.rFRA = 0
-    """
+
+    # set the openess, valid values from 100 to 355
+    if int > 99:
+        try:
+            command.rPRA = int - 100
+            if command.rPRA > 255:
+                command.rPRA = 255
+            if command.rPRA < 0:
+                command.rPRA = 0
+        except ValueError:
+            pass
 
     return command
 
@@ -128,7 +131,7 @@ def callback(msg):
 
 if __name__ == '__main__':
     rospy.init_node('gripper_controller')
-    rospy.Subscriber('gripper_controller', Int8, callback)
+    rospy.Subscriber('gripper_controller', Int16, callback)
     pub = rospy.Publisher('Robotiq3FGripperRobotOutput', Robotiq3FGripperRobotOutput, queue_size = 10)
     command = Robotiq3FGripperRobotOutput()
 

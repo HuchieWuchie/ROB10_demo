@@ -8,14 +8,14 @@ import time
 import open3d as o3d
 import cv2
 import random
-import sys, signal
+import signal
 from scipy.spatial.transform import Rotation as R
 #import actionlib
 
 import geometry_msgs.msg
 from geometry_msgs.msg import Pose, PoseStamped, PoseArray, Transform
 import std_msgs.msg
-from std_msgs.msg import Int8, MultiArrayDimension, MultiArrayLayout, Int32MultiArray, Float32MultiArray, Bool, Header
+from std_msgs.msg import Int8, Int16, MultiArrayDimension, MultiArrayLayout, Int32MultiArray, Float32MultiArray, Bool, Header
 from sensor_msgs.msg import PointCloud2, PointField
 import sensor_msgs.point_cloud2 as pc2
 from iiwa_msgs.msg import JointPosition
@@ -44,17 +44,19 @@ import time
 
 def pertubateEEPose(pose, iteration, rate = 0.005):
 
+    p = copy.deepcopy(pose)
 
-    pose.position.x += random.uniform(0, iteration * rate)
-    pose.position.y += random.uniform(0, iteration * rate)
-    pose.position.z += random.uniform(0, iteration * rate)
 
-    pose.orientation.x += random.uniform(0, iteration * (rate * 0.1))
-    pose.orientation.y += random.uniform(0, iteration * (rate * 0.1))
-    pose.orientation.z += random.uniform(0, iteration * (rate * 0.1))
-    pose.orientation.w += random.uniform(0, iteration * (rate * 0.1))
+    p.position.x += random.uniform(-0.1, 0.1)
+    p.position.y += random.uniform(-0.1, 0.1)
+    p.position.z += random.uniform(-0.20, 0.15)
 
-    return pose
+    p.orientation.x += random.uniform(-0.05, 0.05)
+    p.orientation.y += random.uniform(-0.05, 0.05)
+    p.orientation.z += random.uniform(-0.05, 0.05)
+    p.orientation.w += random.uniform(-0.05, 0.05)
+
+    return p
 
 def signal_handler(signal, frame):
     print("Shutting down program.")
@@ -128,9 +130,28 @@ def pub_joint_command(plan):
 
 
 
-
 if __name__ == '__main__':
     global grasps_affordance, img, affClient, pcd, masks, bboxs, req_aff_id, req_obj_id, state
+
+    reset_gripper_msg = std_msgs.msg.Int16()
+    reset_gripper_msg.data = 0
+    activate_gripper_msg = std_msgs.msg.Int16()
+    activate_gripper_msg.data = 1
+    close_gripper_msg = std_msgs.msg.Int16()
+    close_gripper_msg = 2
+    open_gripper_msg = std_msgs.msg.Int16()
+    open_gripper_msg.data = 3
+    basic_gripper_msg = std_msgs.msg.Int16()
+    basic_gripper_msg.data = 4
+    pinch_gripper_msg = std_msgs.msg.Int16()
+    pinch_gripper_msg.data = 5
+    adjust_width_gripper_msg = std_msgs.msg.Int16()
+    adjust_width_gripper_msg.data = 155
+    increase_force_gripper_msg = std_msgs.msg.Int16()
+    increase_force_gripper_msg.data = 30
+    increase_speed_gripper_msg = std_msgs.msg.Int16()
+    increase_speed_gripper_msg.data = 10
+
 
     print("Init")
     rospy.init_node('moveit_subscriber', anonymous=True)
@@ -149,55 +170,62 @@ if __name__ == '__main__':
             print("STATUS end point frame was changed: ", set_ee)
 
             set_PTP_speed_limit = True
-            if not rob9Utils.iiwa.setPTPJointSpeedLimits(0.1, 0.1):
+            if not rob9Utils.iiwa.setPTPJointSpeedLimits(0.2, 0.2):
                 set_PTP_speed_limit = False
             print("STATUS PTP joint speed limits was changed: ", set_PTP_speed_limit)
 
             set_PTP_cart_speed_limit = True
-            if not rob9Utils.iiwa.setPTPCartesianSpeedLimits(0.1, 0.1, 0.1, 0.1, 0.1, 0.1):
+            if not rob9Utils.iiwa.setPTPCartesianSpeedLimits(0.2, 0.2, 0.2, 0.2, 0.2, 0.2):
                 set_PTP_cart_speed_limit = False
             print("STATUS PTP cartesian speed limits was changed: ", set_PTP_cart_speed_limit)
 
             #rospy.Subscriber('tool_id', Int8, callback)
             rospy.Subscriber('objects_affordances_id', Int32MultiArray, callback )
-            gripper_pub = rospy.Publisher('iiwa/gripper_controller', Int8, queue_size=10, latch=True)
+
             pub_grasp = rospy.Publisher('iiwa/pose_to_reach', PoseStamped, queue_size=10)
             pub_waypoint = rospy.Publisher('iiwa/pose_to_reach_waypoint', PoseStamped, queue_size=10)
             pub_iiwa = rospy.Publisher('iiwa/command/JointPosition', JointPosition, queue_size=10 )
+            gripper_pub = rospy.Publisher('iiwa/gripper_controller', Int16, queue_size=10, latch=True)
             display_trajectory_publisher = rospy.Publisher('iiwa/move_group/display_planned_path',
                                                 moveit_msgs.msg.DisplayTrajectory,
                                                 queue_size=20)
             # DO NOT REMOVE THIS SLEEP, it allows gripper_pub to establish connection to the topic
-            rospy.sleep(0.1)
+            #rospy.sleep(0.1)
             rospy.sleep(2)
 
             vid_capture = cv2.VideoCapture(0)
 
-            reset_gripper_msg = std_msgs.msg.Int8()
-            reset_gripper_msg.data = 0
-            activate_gripper_msg = std_msgs.msg.Int8()
-            activate_gripper_msg.data = 1
-            close_gripper_msg = std_msgs.msg.Int8()
-            close_gripper_msg = 2
-            open_gripper_msg = std_msgs.msg.Int8()
-            open_gripper_msg.data = 3
-            basic_gripper_msg = std_msgs.msg.Int8()
-            basic_gripper_msg.data = 4
-            pinch_gripper_msg = std_msgs.msg.Int8()
-            pinch_gripper_msg.data = 5
-
             gripper_pub.publish(reset_gripper_msg)
+            rospy.sleep(0.1)
             gripper_pub.publish(activate_gripper_msg)
+            rospy.sleep(0.1)
             gripper_pub.publish(open_gripper_msg)
+            rospy.sleep(0.1)
             gripper_pub.publish(pinch_gripper_msg)
+            rospy.sleep(0.1)
+            gripper_pub.publish(adjust_width_gripper_msg)
+            rospy.sleep(0.1)
+            for i in range(6):
+                gripper_pub.publish(increase_force_gripper_msg)
+                rospy.sleep(0.1)
+                gripper_pub.publish(increase_speed_gripper_msg)
+                rospy.sleep(0.1)
+
+            #gripper_pub.publish(gripper.reset_gripper_msg)
+            #gripper_pub.publish(gripper.activate_gripper_msg)
+            #gripper_pub.publish(gripper.close_gripper_msg)
+            #gripper_pub.publish(gripper.open_gripper_msg)
             #rob9Utils.iiwa.execute_spline_trajectory(moveit.planToNamed("ready"))
             #moveit.execute(moveit.planToNamed("ready"))
             #moveit.moveToNamed("handover")
             #moveit.moveToNamed("ready")
 
+
             result = rob9Utils.iiwa.execute_ptp(moveit.getJointPositionAtNamed("ready").joint_position.data)
             state_ready = moveit.getCurrentState()
-            result = rob9Utils.iiwa.execute_ptp(moveit.getJointPositionAtNamed("camera_ready_1").joint_position.data)
+            start_joint_pose_radians = np.array([3.3, 24.2, 0, -74.28, -43.09, 84.06, -173]) * 0.0174533
+            result = rob9Utils.iiwa.execute_ptp(start_joint_pose_radians)
+            #result = rob9Utils.iiwa.execute_ptp(moveit.getJointPositionAtNamed("camera_ready_3").joint_position.data)
 
             req_obj_id = -1
             req_aff_id = -1
@@ -230,7 +258,7 @@ if __name__ == '__main__':
             affClient = AffordanceClient()
 
             affClient.start(GPU=True)
-            _ = affClient.run(img, CONF_THRESHOLD = 0.7)
+            _ = affClient.run(img, CONF_THRESHOLD = 0.5)
 
             masks, labels, scores, bboxs = affClient.getAffordanceResult()
             masks = affClient.processMasks(masks, conf_threshold = 0, erode_kernel=(1,1))
@@ -252,13 +280,14 @@ if __name__ == '__main__':
 
         elif state == 5:
             # Check user input
-            num_occurences = np.where(labels == req_obj_id)[0].shape[0]
-            if num_occurences == 0:
+            try:
+                obj_inst = np.where(labels == req_obj_id)[0][0]
+                state = 6
+            except:
+                print("Did not find requested object")
                 req_obj_id = -1
                 req_obj_id = -1
                 state = 2
-
-            state = 6
 
         elif state == 6:
             # post process affordance segmentation maps
@@ -383,6 +412,7 @@ if __name__ == '__main__':
                 # current pose of object in world frame
 
                 rotClient = OrientationClient()
+                rotClient.setSettings(0)
                 current_orientation, current_position, goal_orientation_giver = rotClient.getOrientation(pcd_affordance) # we discard translation
 
                 curr_rot_quat_world = R.from_matrix(current_orientation).as_quat()
@@ -397,13 +427,19 @@ if __name__ == '__main__':
 
 
                 loc_client = LocationClient()
-                goal_location = loc_client.getLocation().flatten()
-                #goal_location[0] = -0.1
-                #goal_location[1] = -0.6
-                #goal_location[2] = 1.3
+                goal_location_giver = loc_client.getLocation().flatten()
+                goal_location_giver[0] = min(1.2, max(0.9 ,goal_location_giver[0]/2))
+                #goal_location_giver[0] = 0.6
+                goal_location_giver = np.reshape(goal_location_giver, (3, 1))
 
                 _, _, rotMatGiver2World = transform.getTransform("giver", "world")
-                goal_orientation_world = np.matmul(np.linalg.inv(rotMatGiver2World), goal_orientation_giver)
+                #goal_orientation_world = np.matmul(np.linalg.inv(rotMatGiver2World), goal_orientation_giver)
+                goal_orientation_world = np.matmul(rotMatGiver2World, goal_orientation_giver)
+                goal_location = np.matmul(np.linalg.inv(rotMatGiver2World), goal_location_giver)
+                goal_location = transform.transformToFrame(goal_location_giver, "world", "giver")
+                goal_location = np.array([goal_location.pose.position.x, goal_location.pose.position.y, goal_location.pose.position.z])
+                goal_location[2] = 1.4
+                #goal_orientation_world = np.matmul(rotMatGiver2World, goal_orientation_giver)
 
 
                 goal_rot_quat = R.from_matrix(goal_orientation_world).as_quat()
@@ -415,6 +451,9 @@ if __name__ == '__main__':
 
                 # run the grasp algorithm
                 grasp_client = GraspingGeneratorClient()
+                grasp_client.setSettings(0.1, -0.5, 0.5,
+                                        0.1, 0, 0.3,
+                                        0.005, 0, 0.05)
                 grasp_group = grasp_client.run(sampled_grasp_points, pcd_downsample,
                                             "world", req_obj_id, req_aff_id, obj_inst)
 
@@ -500,18 +539,18 @@ if __name__ == '__main__':
                             valid_handover, state_handover = moveit.getInverseKinematicsSolution(state_ready, ee_pose)
                             #print("got state handover ", valid_handover)
                             # call planToPose with ee_goal_msg
-                            """
+
                             i = 0
-                            while i < 100:
+                            while i < 20:
                                 ee_pertubated = pertubateEEPose(ee_pose, i, rate = 0.005)
                                 valid_handover, state_handover = moveit.getInverseKinematicsSolution(state_ready, ee_pertubated)
                                 #plan_found_handover, plan_handover = moveit.planToPose(ee_pertubated)
                                 print(i, ee_pertubated)
 
-                                if valid_grasp:
+                                if valid_handover:
                                     i = 100
                                 i += 1
-                            """
+
 
 
                             #print("Executing trajectory")
@@ -577,7 +616,7 @@ if __name__ == '__main__':
             req_aff_id = -1
             req_obj_id = -1
 
-            state = 2
+            state = 1
 
     try:
         rospy.spin()

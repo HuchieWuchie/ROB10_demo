@@ -5,10 +5,11 @@ Panels:
     Property Tree Widget:
       Expanded:
         - /MotionPlanning1
+        - /MotionPlanning1/Planning Request1
         - /TF1
         - /TF1/Frames1
       Splitter Ratio: 0.7425600290298462
-    Tree Height: 246
+    Tree Height: 288
   - Class: rviz/Help
     Name: Help
   - Class: rviz/Views
@@ -74,10 +75,6 @@ Visualization Manager:
           Expand Link Details: false
           Expand Tree: false
           Link Tree Style: Links in Alphabetic Order
-          camera_ptu_link:
-            Alpha: 1
-            Show Axes: false
-            Show Trail: false
           camera_wrist_link:
             Alpha: 1
             Show Axes: false
@@ -196,22 +193,12 @@ Visualization Manager:
             Alpha: 1
             Show Axes: false
             Show Trail: false
+          laser:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+            Value: true
           palm:
-            Alpha: 1
-            Show Axes: false
-            Show Trail: false
-            Value: true
-          ptuZone:
-            Alpha: 1
-            Show Axes: false
-            Show Trail: false
-            Value: true
-          ptuZoneCorner:
-            Alpha: 1
-            Show Axes: false
-            Show Trail: false
-            Value: true
-          ptu_base:
             Alpha: 1
             Show Axes: false
             Show Trail: false
@@ -257,27 +244,12 @@ Visualization Manager:
             Alpha: 1
             Show Axes: false
             Show Trail: false
-          ptu_pan:
-            Alpha: 1
-            Show Axes: false
-            Show Trail: false
-            Value: true
-          ptu_tilt:
-            Alpha: 1
-            Show Axes: false
-            Show Trail: false
-            Value: true
           right_ee_link:
             Alpha: 1
             Show Axes: false
             Show Trail: false
             Value: true
           robotPlate:
-            Alpha: 1
-            Show Axes: false
-            Show Trail: false
-            Value: true
-          robotPlateCorner:
             Alpha: 1
             Show Axes: false
             Show Trail: false
@@ -324,7 +296,7 @@ Visualization Manager:
         Interactive Marker Size: 0
         Joint Violation Color: 255; 0; 255
         Planning Group: manipulator
-        Query Goal State: true
+        Query Goal State: false
         Query Start State: false
         Show Workspace: false
         Start State Alpha: 1
@@ -346,10 +318,6 @@ Visualization Manager:
           Expand Link Details: false
           Expand Tree: false
           Link Tree Style: Links in Alphabetic Order
-          camera_ptu_link:
-            Alpha: 1
-            Show Axes: false
-            Show Trail: false
           camera_wrist_link:
             Alpha: 1
             Show Axes: false
@@ -468,22 +436,12 @@ Visualization Manager:
             Alpha: 1
             Show Axes: false
             Show Trail: false
+          laser:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+            Value: true
           palm:
-            Alpha: 1
-            Show Axes: false
-            Show Trail: false
-            Value: true
-          ptuZone:
-            Alpha: 1
-            Show Axes: false
-            Show Trail: false
-            Value: true
-          ptuZoneCorner:
-            Alpha: 1
-            Show Axes: false
-            Show Trail: false
-            Value: true
-          ptu_base:
             Alpha: 1
             Show Axes: false
             Show Trail: false
@@ -529,27 +487,12 @@ Visualization Manager:
             Alpha: 1
             Show Axes: false
             Show Trail: false
-          ptu_pan:
-            Alpha: 1
-            Show Axes: false
-            Show Trail: false
-            Value: true
-          ptu_tilt:
-            Alpha: 1
-            Show Axes: false
-            Show Trail: false
-            Value: true
           right_ee_link:
             Alpha: 1
             Show Axes: false
             Show Trail: false
             Value: true
           robotPlate:
-            Alpha: 1
-            Show Axes: false
-            Show Trail: false
-            Value: true
-          robotPlateCorner:
             Alpha: 1
             Show Axes: false
             Show Trail: false
@@ -582,11 +525,7 @@ Visualization Manager:
       Enabled: true
       Frame Timeout: 15
       Frames:
-        1_goal_end_effector_pose:
-          Value: false
         All Enabled: false
-        camera_ptu_link:
-          Value: false
         camera_wrist_link:
           Value: false
         connector_box_camera:
@@ -615,6 +554,14 @@ Visualization Manager:
           Value: false
         finger_middle_link_3:
           Value: false
+        giver:
+          Value: true
+        goal_EE_pose:
+          Value: true
+        goal_to_reach:
+          Value: true
+        grasp_to_reach:
+          Value: true
         gripper_connector_box:
           Value: false
         iiwa_link_0:
@@ -635,13 +582,13 @@ Visualization Manager:
           Value: false
         iiwa_link_ee:
           Value: false
+        laser:
+          Value: true
+        object_current_pose:
+          Value: true
+        object_goal_pose:
+          Value: true
         palm:
-          Value: false
-        ptuZone:
-          Value: false
-        ptuZoneCorner:
-          Value: false
-        ptu_base:
           Value: false
         ptu_camera_bottom_screw_frame:
           Value: false
@@ -663,15 +610,9 @@ Visualization Manager:
           Value: false
         ptu_camera_right_ir_optical_frame:
           Value: false
-        ptu_pan:
-          Value: false
-        ptu_tilt:
-          Value: false
         right_ee_link:
-          Value: false
+          Value: true
         robotPlate:
-          Value: false
-        robotPlateCorner:
           Value: false
         s_connector_cylinder:
           Value: false
@@ -679,8 +620,12 @@ Visualization Manager:
           Value: false
         table:
           Value: false
+        waypoint_to_reach:
+          Value: true
         world:
           Value: false
+        world_to_camera:
+          Value: true
       Marker Scale: 1
       Name: TF
       Show Arrows: true
@@ -688,35 +633,23 @@ Visualization Manager:
       Show Names: true
       Tree:
         world:
-          1_goal_end_effector_pose:
+          goal_EE_pose:
             {}
-          ptuZone:
-            ptuZoneCorner:
-              ptu_base:
-                ptu_pan:
-                  ptu_tilt:
-                    camera_ptu_link:
-                      ptu_camera_bottom_screw_frame:
-                        ptu_camera_link:
-                          ptu_camera_depth_frame:
-                            ptu_camera_color_frame:
-                              ptu_camera_color_optical_frame:
-                                {}
-                            ptu_camera_depth_optical_frame:
-                              {}
-                            ptu_camera_left_ir_frame:
-                              ptu_camera_left_ir_optical_frame:
-                                {}
-                            ptu_camera_right_ir_frame:
-                              connector_box_camera:
-                                {}
-                              ptu_camera_right_ir_optical_frame:
-                                {}
+          goal_to_reach:
+            {}
+          grasp_to_reach:
+            {}
+          object_current_pose:
+            {}
+          object_goal_pose:
+            {}
           table:
-            robotPlate:
+            laser:
               {}
-            robotPlateCorner:
+            robotPlate:
               iiwa_link_0:
+                giver:
+                  {}
                 iiwa_link_1:
                   iiwa_link_2:
                     iiwa_link_3:
@@ -727,7 +660,22 @@ Visualization Manager:
                               iiwa_link_ee:
                                 s_connector_plate:
                                   camera_wrist_link:
-                                    {}
+                                    ptu_camera_bottom_screw_frame:
+                                      ptu_camera_link:
+                                        ptu_camera_depth_frame:
+                                          ptu_camera_color_frame:
+                                            ptu_camera_color_optical_frame:
+                                              {}
+                                          ptu_camera_depth_optical_frame:
+                                            {}
+                                          ptu_camera_left_ir_frame:
+                                            ptu_camera_left_ir_optical_frame:
+                                              {}
+                                          ptu_camera_right_ir_frame:
+                                            connector_box_camera:
+                                              {}
+                                            ptu_camera_right_ir_optical_frame:
+                                              {}
                                   gripper_connector_box:
                                     {}
                                   s_connector_cylinder:
@@ -749,7 +697,21 @@ Visualization Manager:
                                               {}
                                       right_ee_link:
                                         {}
+          waypoint_to_reach:
+            {}
+          world_to_camera:
+            {}
       Update Interval: 0
+      Value: true
+    - Alpha: 1
+      Class: rviz/PointStamped
+      Color: 204; 41; 204
+      Enabled: true
+      History Length: 1
+      Name: PointStamped
+      Radius: 0.20000000298023224
+      Topic: /receiver
+      Unreliable: false
       Value: true
   Enabled: true
   Global Options:
@@ -767,7 +729,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 5.914559364318848
+      Distance: 3.720132350921631
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -782,15 +744,15 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.5097969770431519
+      Pitch: 0.1547970026731491
       Target Frame: world
       Value: XYOrbit (rviz)
-      Yaw: 5.659949779510498
+      Yaw: 4.56496524810791
     Saved: ~
 Window Geometry:
   Displays:
     collapsed: false
-  Height: 971
+  Height: 1025
   Help:
     collapsed: false
   Hide Left Dock: false
@@ -799,9 +761,9 @@ Window Geometry:
     collapsed: false
   MotionPlanning - Trajectory Slider:
     collapsed: false
-  QMainWindow State: 000000ff00000000fd0000000100000000000002a200000363fc0200000007fb000000100044006900730070006c006100790073010000004700000192000000f100fffffffb0000000800480065006c00700000000342000000bb0000008400fffffffb0000000a0056006900650077007300000003b0000000b0000000c200fffffffb0000000c00430061006d00650072006100000002ff000001610000000000000000fb0000001e004d006f00740069006f006e00200050006c0061006e006e0069006e00670100000374000001890000000000000000fb00000044004d006f00740069006f006e0050006c0061006e006e0069006e00670020002d0020005400720061006a006500630074006f0072007900200053006c00690064006500720000000000ffffffff0000001900000019fb0000001c004d006f00740069006f006e0050006c0061006e006e0069006e006701000001e0000001ca000001bd00ffffff000004d70000036300000001000000020000000100000002fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  QMainWindow State: 000000ff00000000fd0000000100000000000002a2000003a7fc0200000007fb000000100044006900730070006c006100790073010000003d000001b2000000c900fffffffb0000000800480065006c00700000000342000000bb0000006e00fffffffb0000000a0056006900650077007300000003b0000000b0000000a400fffffffb0000000c00430061006d00650072006100000002ff000001610000000000000000fb0000001e004d006f00740069006f006e00200050006c0061006e006e0069006e00670100000374000001890000000000000000fb00000044004d006f00740069006f006e0050006c0061006e006e0069006e00670020002d0020005400720061006a006500630074006f0072007900200053006c00690064006500720000000000ffffffff0000001600000016fb0000001c004d006f00740069006f006e0050006c0061006e006e0069006e006701000001f5000001ef0000017d00ffffff00000495000003a700000001000000020000000100000002fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Views:
     collapsed: false
-  Width: 1920
-  X: 0
-  Y: 34
+  Width: 1853
+  X: 67
+  Y: 27

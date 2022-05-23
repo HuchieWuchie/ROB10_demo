@@ -304,6 +304,10 @@ def visualizeMasksInRGB(img, masks, colors = None):
     if colors is None:
         colors = getAffordanceColors()
 
+    for i, color in enumerate(colors):
+        r, g, b = color
+        colors[i] = (b, g, r) # opencv uses BGR representation
+
     else:
         if len(colors) < masks.shape[1]:
             print("Amount of colors is less than amount of affordances")
