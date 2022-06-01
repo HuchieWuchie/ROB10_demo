@@ -7,6 +7,8 @@ Aalborg University (2022)
 
 Electronics and IT
 
+Supervisor: Dimitris Chrysostomou
+
 
 ## Links to affiliated repositories
 
