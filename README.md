@@ -18,11 +18,9 @@ The analysis of the human-to-human handover dataset can be found here: https://g
 
 ## Description
 
-This repository contains our ROS node implementation master thesis "Generating appropriate object orientations for robot-to-human handovers using synthetic object affordances". The system is capable of performing task-oriented handovers, where an object is grasped by its functional affordance and handover with an appropriate orientaiton. Object affordances are detected using our deep neural network AffNet-DR, which was trained solely on synthetic data.
+This repository contains our ROS node implementation master thesis "Generating appropriate object orientations for robot-to-human handovers using synthetic object affordances". The system is capable of performing task-oriented handovers, where an object is grasped by its functional affordance and handover with an appropriate orientaiton. Object affordances are detected using our deep neural network AffNet-DR, which was trained solely on synthetic data. A synthetic dataset already generated can be downloaded from here https://drive.google.com/file/d/1yRL2JbZhZEsL2O9fKbM_DDJ7U53dogkl/view?usp=sharing .
 
 https://user-images.githubusercontent.com/34643562/171363846-6cac8411-6d7b-4615-86e1-b2e0edf9657b.mp4
-
-A synthetic dataset already generated can be downloaded from here https://drive.google.com/file/d/1yRL2JbZhZEsL2O9fKbM_DDJ7U53dogkl/view?usp=sharing
 
 ## Requirements:
 
