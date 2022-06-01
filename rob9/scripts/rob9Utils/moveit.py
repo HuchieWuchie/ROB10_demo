@@ -68,7 +68,7 @@ def getInverseKinematicsSolution(initial_state, pose_msg):
     ik_request_msg.avoid_collisions = False #False
     ik_request_msg.pose_stamped = goal_pose_msg
     ik_request_msg.timeout = rospy.Duration(0.25) #
-    ik_request_msg.attempts = 1
+    ik_request_msg.attempts = 5
 
     rospy.wait_for_service('/iiwa/compute_ik')
     ik_calculator = rospy.ServiceProxy("/iiwa/compute_ik", GetPositionIK)

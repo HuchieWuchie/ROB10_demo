@@ -25,7 +25,7 @@ class ScannerServer{
   public:
     ScannerServer(){
       sub_scan = n.subscribe("scan", 1, &ScannerServer::scanCallback, this);
-      //pub_processed_scan =  n.advertise<sensor_msgs::LaserScan>("processed_scan", 1);
+      pub_processed_scan =  n.advertise<sensor_msgs::LaserScan>("processed_scan", 1);
       pub_receiver_point = n.advertise<geometry_msgs::PointStamped>("receiver", 1);
       serverRequestReceiverPose = n.advertiseService("requestReceiverPose", &ScannerServer::getReceiverPose, this);
     }
@@ -37,11 +37,12 @@ class ScannerServer{
       pub_receiver_point.publish(receiver_world);
     }
 
+
   private:
     ros::NodeHandle n;
     ros::ServiceServer serverRequestReceiverPose;
     ros::Subscriber sub_scan;
-    //ros::Publisher pub_processed_scan;
+    ros::Publisher pub_processed_scan;
     ros::Publisher pub_receiver_point;
     tf2_ros::StaticTransformBroadcaster tf_broadcaster;
     std::vector<float> scan;
@@ -51,13 +52,23 @@ class ScannerServer{
     geometry_msgs::PointStamped receiver_world;
     geometry_msgs::PointStamped receiver_giver;
     tf::TransformListener listener;
-    //sensor_msgs::LaserScan processed_scan;
+    sensor_msgs::LaserScan processed_scan;
+    std::vector<float> filtered_scan;
 
     void scanCallback(const sensor_msgs::LaserScan::ConstPtr& msg){
       //std::cout<<"callback"<<std::endl;
       scan = msg->ranges;
       angle_min = msg->angle_min;
       angle_increment = msg->angle_increment;
+
+
+      processed_scan = *msg;
+      processed_scan.ranges.clear();
+      if (filtered_scan.size() != 0){
+        processed_scan.header.stamp = ros::Time::now();
+        processed_scan.ranges = filtered_scan;
+        pub_processed_scan.publish(processed_scan);
+      }
     }
 
     float calculate_median(std::vector<float>& v){
@@ -117,15 +128,15 @@ class ScannerServer{
 
     bool getReceiverPose(location_service::requestReceiverPose::Request& req, location_service::requestReceiverPose::Response& res){
       std::cout<<"server"<<std::endl;
-      //std::vector<float> filtered_scan;
+      filtered_scan.clear();
       std::vector<float> range;
       std::vector<float> angle_index;
       for (size_t i = 0; i < scan.size(); i++) {
-        if ( scan[i]<0.5 || scan[i]>1.0 || std::isnan(scan[i]) ) {
-          //filtered_scan.push_back(0);
+        if ( scan[i]<0.5 || scan[i]>1.5 || std::isnan(scan[i]) ) {
+          filtered_scan.push_back(0);
           continue;
         } else {
-          //filtered_scan.push_back(scan[i]);
+          filtered_scan.push_back(scan[i]);
           range.push_back(scan[i]);
           angle_index.push_back(i);
         }
@@ -176,11 +187,6 @@ class ScannerServer{
         std::cout<<"receiver_world"<<receiver_world<<std::endl;
         //res.receiver = receiver_world.point;
         res.receiver = receiver_giver.point;
-
-
-        //processed_scan = *msg;
-        //processed_scan.ranges.clear();
-        //processed_scan.ranges = filtered_scan;
         //pub_processed_scan.publish(processed_scan);
       }
     }

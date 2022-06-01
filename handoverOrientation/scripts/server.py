@@ -407,9 +407,6 @@ class OrientationServer(object):
         else:
             source_pcd, goal_orientation = self.createSourceGrasp()
 
-        source_pcd_for_render = preparePointCloudForRenderer(source_pcd)
-
-
         target_bounds = pcd_affordance.get_max_bound() - pcd_affordance.get_min_bound()
         source_bounds = source_pcd.get_max_bound() - source_pcd.get_min_bound()
         scale = np.max(target_bounds) / np.max(source_bounds)
@@ -444,10 +441,6 @@ class OrientationServer(object):
         dist, predictions = self.nn_classifier.kneighbors(feature_vector, n_neighbors = 1)
         source_pcd = self.getSourcePointCloud(prediction = predictions[0][0])
 
-        source_pcd_for_render = self.preparePointCloudForRenderer(source_pcd)
-
-        T = self.findBestTransform(pcd_affordance, source_pcd_for_render)
-        """
         target_bounds = pcd_affordance.get_max_bound() - pcd_affordance.get_min_bound()
         source_bounds = source_pcd.get_max_bound() - source_pcd.get_min_bound()
         scale = np.max(target_bounds) / np.max(source_bounds)
@@ -461,7 +454,7 @@ class OrientationServer(object):
                                         target_points = np.asanyarray(pcd_affordance.points),
                                         target_colors = np.asanyarray(pcd_affordance.colors),
                                         tolerance=0.00001)
-        """
+
 
         """
 
@@ -487,7 +480,7 @@ class OrientationServer(object):
                                         target_normals = np.asanyarray(pcd_affordance.normals),
                                         tolerance=0.00001)
         """
-        o3d.visualization.draw_geometries([pcd_affordance, source_pcd.transform(T)])
+        #o3d.visualization.draw_geometries([pcd_affordance, source_pcd.transform(T)])
         return T, self.getGoalOrientation(predictions[0][0])
 
     def get_random_quaternion(self):
@@ -501,11 +494,36 @@ class OrientationServer(object):
         q = q/q_mag
         return q
 
+    def objective_function_with_affordances(self, solution, observation_xyz, observation_colors, source_xyz, source_colors):
+        #_, cols = observation.shape
+        #distances = np.zeros(cols)
+
+        # center on 0,0,0
+        observation_xyz = observation_xyz - np.mean(observation_xyz, axis = 0)
+        source_xyz = source_xyz - np.mean(source_xyz, axis = 0)
+        #rotated_source = self.rotate_points(solution, source)
+
+        quat = solution
+        quat = quat / np.linalg.norm(quat)
+        rot_mat = R.from_quat(quat).as_matrix()
+
+        rotated_source = o3d.geometry.PointCloud()
+        rotated_source.points = o3d.utility.Vector3dVector(source_xyz)
+        rotated_source.colors = o3d.utility.Vector3dVector(source_colors)
+        rotated_source.rotate(rot_mat)
+
+        rotated_source = np.hstack((np.asanyarray(rotated_source.points), np.asanyarray(rotated_source.colors)))
+
+        neigh= NearestNeighbors(n_neighbors=1)
+        neigh.fit(np.hstack((observation_xyz, observation_colors)))
+        distances, _ = neigh.kneighbors(rotated_source, return_distance = True)
+
+        return np.sum(distances)
+
 
     def objective_function(self, solution, observation, source):
         #_, cols = observation.shape
         #distances = np.zeros(cols)
-
         # center on 0,0,0
         observation = observation - np.mean(observation, axis = 0)
         source = source - np.mean(source, axis = 0)
@@ -592,6 +610,7 @@ class OrientationServer(object):
         z_range = 5
 
         depth_image, rgb_image = None, None
+        count = 1
         for x in range(x_range):
             for y in range(y_range):
                 for z in range(z_range):
@@ -627,13 +646,16 @@ class OrientationServer(object):
                     num_source_points = np.asanyarray(pcd_single_view.points).shape[0]
                     num_target_points = np.asanyarray(pcd_affordance.points).shape[0]
                     pcd_single_view = pcd_single_view.random_down_sample(num_target_points / num_source_points)
+                    #pcd_single_view = pcd_single_view.voxel_down_sample(0.02)
 
                     source_affordances, _ = getPredictedAffordancesInPointCloud(pcd_single_view)
                     source_affordances[0] = 0
                     target_affordances, _ = getPredictedAffordancesInPointCloud(pcd_affordance)
 
                     source_points = np.asanyarray(pcd_single_view.points)
+                    source_colors = np.asanyarray(pcd_single_view.colors)
                     target_points = np.asanyarray(pcd_affordance.points)
+                    target_colors = np.asanyarray(pcd_affordance.colors) * 255
 
                     if np.array_equal(source_affordances, target_affordances):
 
@@ -641,6 +663,11 @@ class OrientationServer(object):
                         min_sum_solution = None
 
                         initial_guess = self.get_random_quaternion()
+
+                        target_aff = np.hstack((target_points, target_colors))
+                        #source_aff = np.hstack((source_points, np.asanyarray(pcd_single_view.colors)))
+
+                        #xopt = scipy.optimize.minimize(self.objective_function_with_affordances, x0 = initial_guess, method='Nelder-Mead', args=(target_points, target_colors, source_points, source_colors))
                         xopt = scipy.optimize.minimize(self.objective_function, x0 = initial_guess, method='Nelder-Mead', args=(target_points, source_points))
 
                         solution_mag = np.linalg.norm(xopt.x)
@@ -657,9 +684,9 @@ class OrientationServer(object):
 
                         neigh = NearestNeighbors(n_neighbors=1)
                         neigh.fit(target_points)
-                        distances, indices = neigh.kneighbors(source_points, return_distance=True)
+                        distances, indices = neigh.kneighbors(pcd_score_points, return_distance=True)
 
-                        score = np.mean(distances)
+                        score = np.mean(distances) / num_source_points
 
                         centroid = pcd_affordance.get_center()
                         T = np.eye(4)
@@ -673,7 +700,7 @@ class OrientationServer(object):
                         T = np.eye(4)
 
 
-                    print(best_score)
+                    print(count, " / ", x_range*y_range*z_range, " best score so far: ", best_score)
 
                     if score < best_score:
                         pcd_single_view.transform(T)
@@ -686,8 +713,14 @@ class OrientationServer(object):
 
                         o3d.visualization.draw_geometries([pcd_affordance, pcd_single_view])
 
-                    if best_score < 0.1:
+                    if best_score < 0.02:
+                        print("Best score below threshold")
+                        x = x_range
+                        y = y_range
+                        z = z_range
                         break
+
+                    count += 1
 
         te = time.time()
         print("Found transformation in: ", te -ts, " s")
@@ -710,8 +743,8 @@ class OrientationServer(object):
         T = 0
         G = 0
         if self.method == 0:
-            #T, G = self.methodObservation(pcd_affordance)
-            T, G = self.methodObservationQuat(pcd_affordance)
+            T, G = self.methodObservation(pcd_affordance)
+            #T, G = self.methodObservationQuat(pcd_affordance)
         elif self.method == 1:
             T, G = self.methodRule(pcd_affordance)
 

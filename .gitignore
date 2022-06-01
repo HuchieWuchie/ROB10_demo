@@ -55,5 +55,17 @@ CATKIN_IGNORE
 __pycache__/
 affordanceAnalyzer/scripts/affordancenet_synthetic/weights.pth
 
-rob10/scripts/experiments/orientation_test/*.ply
-rob10/scripts/experiments/orientation_test/*.npy
+rob10/scripts/experiments/orientation_test_observation/*.ply
+rob10/scripts/experiments/orientation_test_observation/*.npy
+rob10/scripts/experiments/orientation_test_observation/*.txt
+rob10/scripts/experiments/orientation_test_observation/*.png
+
+rob10/scripts/experiments/orientation_test_random/*.ply
+rob10/scripts/experiments/orientation_test_random/*.npy
+rob10/scripts/experiments/orientation_test_random/*.txt
+rob10/scripts/experiments/orientation_test_random/*.png
+
+rob10/scripts/experiments/orientation_test_rule/*.ply
+rob10/scripts/experiments/orientation_test_rule/*.npy
+rob10/scripts/experiments/orientation_test_rule/*.txt
+rob10/scripts/experiments/orientation_test_rule/*.png

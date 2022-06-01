@@ -160,6 +160,22 @@ class Grasp(object):
         self.orientation = Orientation(qx = new_f.pose.orientation.x, qy = new_f.pose.orientation.y, qz = new_f.pose.orientation.z, qw = new_f.pose.orientation.w)
         self.frame_id = new_f.header.frame_id
 
+    def toPoseArray(self):
+        """ returns the numpy array pose of the grasp, [x, y, z, qx, qy, qz, qw]
+        """
+
+        pose = np.zeros(7)
+        pose[0] = self.position.x
+        pose[1] = self.position.y
+        pose[2] = self.position.z
+        pose[3] = self.orientation.x
+        pose[4] = self.orientation.y
+        pose[5] = self.orientation.z
+        pose[6] = self.orientation.w
+
+        return pose
+
+
     def toPoseMsg(self):
 
         pose = Pose()

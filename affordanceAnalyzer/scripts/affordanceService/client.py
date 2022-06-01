@@ -72,9 +72,10 @@ class AffordanceClient(object):
                                 'spoon': 6, 'trowel': 7, 'bowl': 8, 'cup': 9, 'ladle': 10,
                                 'mug': 11, 'pot': 12, 'shovel': 13, 'turner': 14, 'hammer': 15,
                                 'mallet': 16, 'tenderizer': 17, 'bottle': 18, 'drill': 19, 'tvm': 20, 'pan': 21, 'racket': 22}
-            self.labelsToNames = {'__background__': 0, 'grasp': 1, 'cut': 2, 'scoop': 3, 'contain': 4, 'pound': 5, 'support': 6, 'wrap-grasp': 7, 'display': 8, 'engine': 9, 'hit': 10}
-            self.graspLabels = [1, 7]
-            self.functionalLabels = [2, 3, 4, 5, 6, 8, 9]
+            self.NamesToLabels = {'__background__': 0, 'grasp': 1, 'cut': 2, 'scoop': 3, 'contain': 4, 'pound': 5, 'support': 6, 'wrap-grasp': 7, 'display': 8, 'engine': 9, 'hit': 10}
+            self.labelsToNames = {0: '__background__', 1: 'grasp', 2: 'cut', 3: 'scoop', 4: 'contain', 5: 'pound', 6: 'support', 7: 'wrap-grasp', 8: 'display', 9: 'engine', 10: 'hit'}
+            self.graspLabels = [1]
+            self.functionalLabels = [2, 3, 4, 5, 6, 7, 8, 9]
 
     def getName(self):
 

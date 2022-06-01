@@ -183,13 +183,13 @@ void RealsenseServer::update(){
       aligned_frames = align.process(frames);
 
       // FILTERING, CHANGE AS NEEDED
-      //rs2::hole_filling_filter hole_filter(2);
+      rs2::hole_filling_filter hole_filter(2);
       rs2::decimation_filter dec_filter;
       rs2::threshold_filter thr_filter;
       thr_filter.set_option(RS2_OPTION_MIN_DISTANCE, 0.1f);
       thr_filter.set_option(RS2_OPTION_MAX_DISTANCE, 1.0f);
-      //processed_depth_frame = hole_filter.process(dec_filter.process(thr_filter.process(aligned_frames.get_depth_frame())));
-      processed_depth_frame = dec_filter.process(thr_filter.process(aligned_frames.get_depth_frame()));
+      processed_depth_frame = hole_filter.process(dec_filter.process(thr_filter.process(aligned_frames.get_depth_frame())));
+      //processed_depth_frame = dec_filter.process(thr_filter.process(aligned_frames.get_depth_frame()));
 
       RealsenseServer::generateStatics();
     }

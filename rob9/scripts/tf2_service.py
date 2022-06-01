@@ -57,8 +57,6 @@ def getTransform(req):
     source_frame = req.source_frame.data
     target_frame = req.target_frame.data
 
-    print(source_frame, target_frame)
-
     try:
         transformation_msg = tf_buffer.lookup_transform(target_frame, source_frame,
                                                     rospy.Time(0), rospy.Duration(0.1))
@@ -68,7 +66,6 @@ def getTransform(req):
     response = tf2GetTransformSrvResponse()
     response.transform = transformation_msg.transform
 
-    print(transformation_msg)
     return response
 
 

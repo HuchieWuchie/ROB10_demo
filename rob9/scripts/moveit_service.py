@@ -124,7 +124,6 @@ def planFromPoseToPose(req):
 
         return response
 
-    print(goal_state)
 
     joint_states_at_goal = list(goal_state.solution.joint_state.position)
     joint_values_at_goal = copy.deepcopy(joint_states_at_goal[2:9])
@@ -132,10 +131,7 @@ def planFromPoseToPose(req):
     move_group.set_joint_value_target(joint_values_at_goal)
     plan = move_group.plan()
 
-    print(type(plan))
-
     print("found plan ")
-    print(plan)
 
     response = moveitPlanFromPoseToPoseSrvResponse()
     response.plan = plan

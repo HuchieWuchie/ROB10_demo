@@ -8,6 +8,7 @@ import open3d as o3d
 import cv2
 import math
 from scipy.spatial.transform import Rotation as R
+from sklearn.neighbors import NearestNeighbors
 
 from nav_msgs.msg import Path
 from geometry_msgs.msg import Pose
@@ -20,6 +21,7 @@ from rob9.srv import *
 from rob9Utils.visualize import create_mesh_box, createGripper, visualizeGripper, visualizeFrameMesh
 from grasp_service.client import GraspingGeneratorClient
 from cameraService.cameraClient import CameraClient
+from scipy.spatial import distance
 #from rob9Utils.graspGroup import GraspGroup as rob9GraspGroup
 #from rob9Utils.grasp import Grasp as rob9Grasp
 
@@ -95,6 +97,9 @@ class GraspServer(object):
         depth_values = np.arange(self.depth_min, self.depth_max + self.depth_step_size,
                                     self.depth_step_size)
 
+        centroid = sampled_grasps.get_center()
+        bounds = sampled_grasps.get_max_bound() - sampled_grasps.get_min_bound()
+
         poses, scores = [], []
         for grasp_count, s_grasp in enumerate(np.asanyarray(sampled_grasp_points)):
 
@@ -118,6 +123,18 @@ class GraspServer(object):
             blob_matrix = np.zeros((polar_values.shape[0],
                                     azimuth_values.shape[0])).astype(np.uint8)
 
+            sampled_grasps_without_current = []
+            for g_count, g in enumerate(sampled_grasp_points):
+                if g_count != grasp_count:
+                    sampled_grasps_without_current.append(g)
+            sampled_grasps_without_current = np.array(sampled_grasps_without_current)
+            neigh= NearestNeighbors(n_neighbors=1)
+            neigh.fit(sampled_grasps_without_current)
+
+            largest_dist = 0
+            best_pol_val = 0
+            best_azi_val = 0
+
             for y_count, polar_value in enumerate(polar_values):
                 for x_count, azimuth_value in enumerate(azimuth_values):
 
@@ -140,16 +157,42 @@ class GraspServer(object):
 
                     gripper = createGripper(opening = 0.12, translation = translation, rotation = eeRotMat)
                     if self.checkCollisionEnvironment(gripper, local_points) == False:
-                        #vis_gripper = visualizeGripper(gripper)
-                        #gripper_frame = visualizeFrameMesh(translation, eeRotMat)
-                        #o3d.visualization.draw_geometries([pcd_downsample,  vis_gripper, gripper_frame])
-                        blob_matrix[y_count, x_count] = 255
+                        if self.checkCollisionEnvironment(gripper, sampled_grasp_points) == False:
+                            #vis_gripper = visualizeGripper(gripper)
+                            #gripper_frame = visualizeFrameMesh(translation, eeRotMat)
+                            #o3d.visualization.draw_geometries([pcd_downsample,  vis_gripper, gripper_frame])
+                            blob_matrix[y_count, x_count] = 255 #outcommented today
+                            distance_left_finger, _ = neigh.kneighbors(np.reshape(gripper[1].get_center(), (1, 3)), return_distance = True)
+                            distance_right_finger, _ = neigh.kneighbors(np.reshape(gripper[2].get_center(), (1, 3)), return_distance = True)
+                            distance_left_finger = distance_left_finger[0][0]
+                            distance_right_finger = distance_right_finger[0][0]
+                            dist_to_self = min(distance_left_finger, distance_right_finger)
+
+                            if dist_to_self > largest_dist:
+                                largest_dist = dist_to_self
+                                best_azi_val = azimuth_value
+                                best_pol_val = polar_value
+                            #print("Colliion self FALSE")
+
+                            #vis_gripper = visualizeGripper(gripper)
+                            #gripper_frame = visualizeFrameMesh(translation, eeRotMat)
+                            #o3d.visualization.draw_geometries([pcd_downsample,  vis_gripper, gripper_frame])
+                        #else:
+                        #    print("Collision self TRUE")
+                    #else:
+                    #    print("Colliion environment TRUE")
+
+
 
             if 255 in np.unique(blob_matrix):
-                best_grasp_idx, score = self.processGrasps(blob_matrix)
+                #best_grasp_idx, score = self.processGrasps(blob_matrix)
+                #score = largest_dist
 
-                polar_value = polar_values[best_grasp_idx[0]]
-                azimuth_value = azimuth_values[best_grasp_idx[1]]
+                #polar_value = polar_values[best_grasp_idx[0]]
+                #azimuth_value = azimuth_values[best_grasp_idx[1]]
+
+                polar_value = best_pol_val
+                azimuth_value = best_azi_val
 
                 ee_rotation = np.array([math.pi + (math.pi * polar_value), 0, (math.pi *azimuth_value)]) # franka
                 #ee_rotation = np.array([0, math.pi / 2, math.pi/2])
@@ -159,12 +202,21 @@ class GraspServer(object):
                 rotEE = R.from_euler('XYZ', ee_rotation)
                 eeRotMat = rotEE.as_matrix()
 
+                score = 0
+
                 d_count = 0
                 for depth_value in depth_values:
 
                     translation = s_grasp.copy()
                     translation[2] = translation[2] - depth_value
                     gripper = createGripper(opening = 0.12, translation = translation, rotation = eeRotMat)
+
+                    distance_left_finger, _ = neigh.kneighbors(np.reshape(gripper[1].get_center(), (1, 3)), return_distance = True)
+                    distance_right_finger, _ = neigh.kneighbors(np.reshape(gripper[2].get_center(), (1, 3)), return_distance = True)
+                    distance_left_finger = distance_left_finger[0][0]
+                    distance_right_finger = distance_right_finger[0][0]
+                    dist_to_self = min(distance_left_finger, distance_right_finger)
+                    score += dist_to_self
                     #vis_gripper = visualizeGripper(gripper)
                     #gripper_frame = visualizeFrameMesh(translation, eeRotMat)
                     #o3d.visualization.draw_geometries([pcd_downsample, vis_gripper, gripper_frame])
@@ -174,14 +226,23 @@ class GraspServer(object):
 
                     d_count += 1
 
+                #score = (d_count + 1) / depth_values.shape[0]
+
                 translation = s_grasp.copy()
                 translation[2] = s_grasp[2] - depth_values[int(d_count / 2)]
+                #score = 1 - distance.euclidean(np.linalg.norm(translation), np.linalg.norm(centroid))
                 #translation[2] = s_grasp[2] - depth_values[min(0, d_count-1)]
+
+                print(score)
+                #vis_gripper = visualizeGripper(gripper)
+                #gripper_frame = visualizeFrameMesh(translation, eeRotMat)
+                #o3d.visualization.draw_geometries([pcd_downsample, vis_gripper, gripper_frame])
 
                 quat = rotEE.as_quat()
                 poses.append([translation[0], translation[1], translation[2],
                             quat[0], quat[1], quat[2], quat[3]])
                 scores.append(score)
+
         print("Computed grasps, now sending...")
 
         grasp_client = GraspingGeneratorClient()

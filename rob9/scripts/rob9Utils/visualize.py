@@ -3,6 +3,7 @@ import rospy
 import numpy as np
 import cv2
 import open3d as o3d
+from affordanceService.client import AffordanceClient
 from rob9.msg import *
 from rob9Utils.graspGroup import GraspGroup
 from rob9Utils.grasp import Grasp
@@ -282,6 +283,47 @@ def viz_color_pointcloud(points, color):
     pc_viz.points = o3d.utility.Vector3dVector(points.astype(np.float32))
     return pc_viz
 
+def get_optimal_font_scale(text, width):
+    """https://stackoverflow.com/questions/52846474/how-to-resize-text-for-cv2-puttext-according-to-the-image-size-in-opencv-python"""
+    for scale in reversed(range(0, 60, 1)):
+        textSize = cv2.getTextSize(text, fontFace=cv2.FONT_HERSHEY_DUPLEX, fontScale=scale/10, thickness=1)
+        new_width = textSize[0][0]
+        if (new_width <= width):
+            if scale/10 > 1.0:
+                return 1
+            return scale/10
+    return 1
+
+def visualizeBBoxInRGB(im, labels, bboxs, scores):
+
+    aff_client = AffordanceClient(connected = False)
+
+    if bboxs is None:
+        print("No bounding boxes to visualize")
+        return 0
+    if bboxs.shape[0] < 0:
+        print("No bounding boxes to visualize")
+        return 0
+
+    img = im.copy()
+
+    for box, label, score in zip(bboxs, labels, scores):
+        x1, y1, x2, y2 = int(box[0]), int(box[1]), int(box[2]), int(box[3])
+        ps = (box[0], box[1])
+        pe = (box[2], box[3])
+        color = (0, 0, 255)
+        thickness = 2
+        img = cv2.rectangle(img, ps, pe, color, thickness)
+
+        text = str(aff_client.OBJ_CLASSES[label]) + " " + str(round(score, 2))
+        width = int(box[2] - box[0])
+        fontscale = get_optimal_font_scale(text, width)
+        y_rb = int(box[3] + 40)
+        img[int(box[3]):y_rb, int(box[0])-1:int(box[2])+2] = (0, 0, 255)
+        img = cv2.putText(img, text, (box[0], int(y_rb-10)), cv2.FONT_HERSHEY_SIMPLEX, fontscale, (255, 255, 255), 2, 2)
+
+    return img
+
 def visualizeMasksInRGB(img, masks, colors = None):
     """ Input:
         img     -   np.array shape (h, w, c)
@@ -339,13 +381,15 @@ def createGripper(opening = 0.08, translation = np.zeros(3), rotation = np.ident
 
     translation = translation.flatten()
 
-    finger_width = 0.02 # x-axis, in meters
+    finger_width = 0.03 # x-axis, in meters 0.02
     finger_length = 0.02 # y-axis, in meters
     finger_height = 0.045 # z-axis
-    #finger_offset_z = -0.001
-    finger_offset_z = 0.015
+    #finger_offset_z = -0.01
+    #finger_offset_z = 0.015
+    #finger_offset_z = 0.001
+    finger_offset_z = 0.01 # -0.0015, 0.025
 
-    chasis_width = 0.03 # x-axis, in meters
+    chasis_width = 0.04 # x-axis, in meters 0.03
     chasis_length = 0.18 # y-axis
     chasis_height = 0.12 # z-axis
     chasis = create_mesh_box(chasis_width, chasis_length, chasis_height,
@@ -358,15 +402,19 @@ def createGripper(opening = 0.08, translation = np.zeros(3), rotation = np.ident
     chasis = o3d.geometry.PointCloud()
     chasis.points = o3d.utility.Vector3dVector(chasis_points)
 
-    left_finger_points = np.array([[-chasis_width / 2.0, (-finger_width / 2) -(opening / 2), finger_offset_z],
-                            [chasis_width / 2.0, (-finger_width / 2) -(opening / 2), finger_offset_z],
-                            [-chasis_width / 2.0, (-finger_width / 2) -(opening / 2), -finger_offset_z - finger_height],
-                            [chasis_width / 2.0, (-finger_width / 2) -(opening / 2), -finger_offset_z - finger_height],
+    left_finger_points = np.array([
 
                             [-chasis_width / 2.0, (finger_width / 2) -( opening / 2), finger_offset_z],
                             [chasis_width / 2.0, (finger_width / 2) -( opening / 2), finger_offset_z],
                             [-chasis_width / 2.0, (finger_width / 2) -( opening / 2), -finger_offset_z - finger_height],
                             [chasis_width / 2.0, (finger_width / 2) -( opening / 2), -finger_offset_z - finger_height],
+
+                            [-chasis_width / 2.0, (-finger_width / 2) -(opening / 2), finger_offset_z],
+                            [chasis_width / 2.0, (-finger_width / 2) -(opening / 2), finger_offset_z],
+                            [-chasis_width / 2.0, (-finger_width / 2) -(opening / 2), -finger_offset_z - finger_height],
+                            [chasis_width / 2.0, (-finger_width / 2) -(opening / 2), -finger_offset_z - finger_height],
+
+
                             ])
 
     left_finger = o3d.geometry.PointCloud()

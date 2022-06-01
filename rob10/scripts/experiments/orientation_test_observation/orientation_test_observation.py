@@ -162,7 +162,7 @@ if __name__ == '__main__':
     state = 1 # start at setup phase
     rate = rospy.Rate(10)
 
-    object_count = 2
+    object_count = -1
 
     while True:
 
@@ -266,17 +266,12 @@ if __name__ == '__main__':
 
         elif state == 4:
 
-            #while True:
-            #    rate.sleep()
-            #    if req_aff_id != -1 and req_obj_id != -1:
-            #        break
             print("Attempting to pick up: ", labels[object_count])
             state = 5
 
         elif state == 5:
             # Check user input
             try:
-                #obj_inst = np.where(labels == object_count)[0][0]
                 obj_inst = object_count
                 state = 6
             except:
@@ -291,6 +286,8 @@ if __name__ == '__main__':
             obj_inst_masks = masks[obj_inst]
             obj_inst_labels = labels[obj_inst]
             obj_inst_bbox = bboxs[obj_inst]
+
+
 
             # Post process affordance predictions and compute point cloud affordance mask
 
@@ -357,16 +354,8 @@ if __name__ == '__main__':
             tf_msg.rotation.z = quat_world_to_put[2]
             tf_msg.rotation.w = quat_world_to_put[3]
 
-            print(tf_msg)
-
             transform.visualizeTransform(tf_msg, "world_to_camera")
 
-
-
-
-            #cam2WorldTransform = np.array([-(math.pi/2) - 1.0995574287564276, 0, -(math.pi)-(math.pi/4)+1.2220795422464295])
-            #rotCam2World = R.from_euler('xyz', cam2WorldTransform)
-            #rotMatCam2World = rotCam2World.as_matrix()
 
             #points = np.dot(rotMatCam2World, np.asanyarray(pcd.points).T).T + translCam2World
             pcd.transform(T)
@@ -403,206 +392,182 @@ if __name__ == '__main__':
 
                 # computing goal pose of object in world frame and
                 # current pose of object in world frame
+                """
+                mean_quat = []
+                mean_quat.append([ 0.04510172,  0.6002882,  -0.32359202, -0.73000556]) # hammer
+                mean_quat.append([ 0.17858507, -0.72325377,  0.14493605,  0.65115659]) # spatula
+                mean_quat.append([-0.03664714,  0.72422009, -0.08418687, -0.68342872]) # ladle
+                mean_quat.append([-0.0985996,   0.70367063 ,-0.18686055, -0.67838698]) # cup
+                mean_quat.append([-0.0985996,   0.70367063 ,-0.18686055, -0.67838698]) # bowl
 
-                rotClient = OrientationClient()
-                rotClient.setSettings(0)
-                current_orientation, current_position, goal_orientation_giver = rotClient.getOrientation(pcd_affordance) # we discard translation
 
-                curr_rot_quat_world = R.from_matrix(current_orientation).as_quat()
+                current_position = np.loadtxt(os.path.join(path, "position_" + str(obj_inst) + ".txt"))
+                curr_rot_quat_world = np.loadtxt(os.path.join(path, "orientation_"  + str(obj_inst) + ".txt"))
+                goal_orientation_giver = R.from_quat(mean_quat[obj_inst]).as_matrix()
                 curr_pose_world = np.hstack((current_position.flatten(), curr_rot_quat_world))
+
                 transform.visualizeTransform(transform.poseToTransform(curr_pose_world), "object_current_pose")
-                rotated_coordinate_frame = visualizeFrameMesh(current_position, current_orientation)
-                #rotated_coordinate_frame_to_goal = visualizeFrameMesh(translation, goal)
-
-                #o3d.visualization.draw_geometries([pcd, rotated_coordinate_frame])
-
-                ## Get goal position using linescan service
-
 
                 loc_client = LocationClient()
                 goal_location_giver = loc_client.getLocation().flatten()
                 goal_location_giver[0] = min(1.2, max(0.9 ,goal_location_giver[0]/2))
-                #goal_location_giver[0] = 0.6
                 goal_location_giver = np.reshape(goal_location_giver, (3, 1))
 
+                goal_orientation_giver = R.from_quat(mean_quat[obj_inst]).as_matrix()
                 _, _, rotMatGiver2World = transform.getTransform("giver", "world")
-                #goal_orientation_world = np.matmul(np.linalg.inv(rotMatGiver2World), goal_orientation_giver)
                 goal_orientation_world = np.matmul(rotMatGiver2World, goal_orientation_giver)
                 goal_location = np.matmul(np.linalg.inv(rotMatGiver2World), goal_location_giver)
                 goal_location = transform.transformToFrame(goal_location_giver, "world", "giver")
                 goal_location = np.array([goal_location.pose.position.x, goal_location.pose.position.y, goal_location.pose.position.z])
                 goal_location[2] = 1.4
-                #goal_orientation_world = np.matmul(rotMatGiver2World, goal_orientation_giver)
 
 
                 goal_rot_quat = R.from_matrix(goal_orientation_world).as_quat()
-
                 goal_pose_world = np.hstack((goal_location.flatten(), goal_rot_quat))
-
-                #goal_pose_world = transform.transformToFrame(goal_pose_giver, "world", "giver")
                 transform.visualizeTransform(transform.poseToTransform(goal_pose_world), "object_goal_pose")
+                """
 
                 # run the grasp algorithm
-                grasp_client = GraspingGeneratorClient()
-                grasp_client.setSettings(0.1, -0.5, 0.5,
-                                        0.1, 0, 0.3,
-                                        0.005, 0, 0.05)
-                grasp_group = grasp_client.run(sampled_grasp_points, pcd_downsample,
-                                            "world", labels[object_count], 0, object_count)
+                grasp_data = np.loadtxt(os.path.join(path, "grasp_" + str(obj_inst) + ".txt"))
+                grasp = Grasp(frame_id = "world")
+                grasp.position.set(grasp_data[0], grasp_data[1], grasp_data[2])
+                grasp.orientation.setQuaternion(grasp_data[3:])
 
-                print("I got ", len(grasp_group.grasps), " grasps")
+                count_grasp = 0
 
-                #grasp_group.thresholdByScore(0.3)
-                grasp_group.sortByScore()
+                print("=========================================")
+                #print(count_grasp)
+                valid_waypoints = [0, 0, 0]
+                waypoint = computeWaypoint(grasp, offset = 0.1)
+                waypoint_msg = waypoint.toPoseMsg()
+                moveit.getCurrentState()
+                pub_waypoint.publish(waypoint.toPoseStampedMsg())
+                valid_waypoint, state_waypoint = moveit.getInverseKinematicsSolution(state_ready, waypoint_msg)
+                if valid_waypoint:
+                    valid_waypoints = [1, 0, 0]
+                    print("Grasp number ", count_grasp, " valid waypoints ", valid_waypoints)
+                    grasp_msg = grasp.toPoseMsg()
+                    #plan_found_waypoint_to_grasp, plan_grasp = moveit.planFromPoseToPose(waypoint_msg, grasp_msg)
+                    valid_grasp, state_grasp = moveit.getInverseKinematicsSolution(state_waypoint.solution, grasp_msg)
+                    #print("Got state grasp")
 
-                for count_grasp, grasp in enumerate(grasp_group):
-                    print("=========================================")
-                    #print(count_grasp)
-                    valid_waypoints = [0, 0, 0]
-                    waypoint = computeWaypoint(grasp, offset = 0.1)
-                    #print("Computed waypoint")
-                    waypoint_msg = waypoint.toPoseMsg()
-                    #print("waypint to pose msg")
-                    # inverse kin where
-                    moveit.getCurrentState()
-                    #print("get current state works")
-                    pub_waypoint.publish(waypoint.toPoseStampedMsg())
-                    valid_waypoint, state_waypoint = moveit.getInverseKinematicsSolution(state_ready, waypoint_msg)
-                    #print("Valid waypoint: ", valid_waypoint)
-                    #print("State waypoint: ", state_waypoint)
-                    if valid_waypoint:
-                        valid_waypoints = [1, 0, 0]
+                    if valid_grasp:
+                        valid_waypoints = [1, 1, 0]
                         print("Grasp number ", count_grasp, " valid waypoints ", valid_waypoints)
-                        grasp_msg = grasp.toPoseMsg()
-                        #plan_found_waypoint_to_grasp, plan_grasp = moveit.planFromPoseToPose(waypoint_msg, grasp_msg)
-                        valid_grasp, state_grasp = moveit.getInverseKinematicsSolution(state_waypoint.solution, grasp_msg)
-                        #print("Got state grasp")
-
-                        if valid_grasp:
-                            valid_waypoints = [1, 1, 0]
-                            print("Grasp number ", count_grasp, " valid waypoints ", valid_waypoints)
-                            pub_waypoint.publish(waypoint.toPoseStampedMsg())
-                            pub_grasp.publish(grasp.toPoseStampedMsg())
+                        pub_waypoint.publish(waypoint.toPoseStampedMsg())
+                        pub_grasp.publish(grasp.toPoseStampedMsg())
 
 
+                        """
+                        # Compute the homegenous 4x4 transformation matrices
 
-                            # Compute the homegenous 4x4 transformation matrices
+                        world_grasp_T = transform.poseStampedToMatrix(grasp.toPoseStampedMsg()) # grasp_pose_world
+                        world_centroid_T = transform.poseToMatrix(curr_pose_world)
+                        world_centroid_T_goal = transform.poseToMatrix(goal_pose_world)
+                        #world_centroid_T_goal =
 
-                            world_grasp_T = transform.poseStampedToMatrix(grasp.toPoseStampedMsg()) # grasp_pose_world
-                            world_centroid_T = transform.poseToMatrix(curr_pose_world)
-                            world_centroid_T_goal = transform.poseToMatrix(goal_pose_world)
-                            #world_centroid_T_goal =
+                        # Compute an end effector pose that properly orients the grasped tool
 
-                            # Compute an end effector pose that properly orients the grasped tool
+                        grasp_world_T = np.linalg.inv(world_grasp_T)
+                        grasp_centroid_T = np.matmul(grasp_world_T, world_centroid_T)
 
-                            grasp_world_T = np.linalg.inv(world_grasp_T)
-                            grasp_centroid_T = np.matmul(grasp_world_T, world_centroid_T)
+                        centroid_grasp_T = np.linalg.inv(grasp_centroid_T)
+                        world_grasp_T_goal = np.matmul(world_centroid_T_goal, centroid_grasp_T)
+                        goal_q = transform.quaternionFromRotation(world_grasp_T_goal)
 
-                            centroid_grasp_T = np.linalg.inv(grasp_centroid_T)
-                            world_grasp_T_goal = np.matmul(world_centroid_T_goal, centroid_grasp_T)
-                            goal_q = transform.quaternionFromRotation(world_grasp_T_goal)
+                        world_centroid_T_test = np.matmul(world_grasp_T, grasp_centroid_T)
+                        world_centroid_T_goal_test = np.matmul(world_grasp_T_goal, grasp_centroid_T)
 
-                            world_centroid_T_test = np.matmul(world_grasp_T, grasp_centroid_T)
-                            world_centroid_T_goal_test = np.matmul(world_grasp_T_goal, grasp_centroid_T)
+                        # Create poseStamped ros message
 
-                            # Create poseStamped ros message
+                        ee_goal_msg = geometry_msgs.msg.PoseStamped()
+                        ee_goal_msg.header.frame_id = "world"
+                        ee_goal_msg.header.stamp = rospy.Time.now()
 
-                            ee_goal_msg = geometry_msgs.msg.PoseStamped()
-                            ee_goal_msg.header.frame_id = "world"
-                            ee_goal_msg.header.stamp = rospy.Time.now()
+                        ee_pose = Pose()
+                        ee_pose.position.x = world_grasp_T_goal[0,3]
+                        ee_pose.position.y = world_grasp_T_goal[1,3]
+                        ee_pose.position.z = world_grasp_T_goal[2,3]
 
-                            ee_pose = Pose()
-                            ee_pose.position.x = world_grasp_T_goal[0,3]
-                            ee_pose.position.y = world_grasp_T_goal[1,3]
-                            ee_pose.position.z = world_grasp_T_goal[2,3]
+                        ee_pose.orientation.x = goal_q[0]
+                        ee_pose.orientation.y = goal_q[1]
+                        ee_pose.orientation.z = goal_q[2]
+                        ee_pose.orientation.w = goal_q[3]
 
-                            ee_pose.orientation.x = goal_q[0]
-                            ee_pose.orientation.y = goal_q[1]
-                            ee_pose.orientation.z = goal_q[2]
-                            ee_pose.orientation.w = goal_q[3]
+                        ee_goal_msg.pose = ee_pose
 
-                            ee_goal_msg.pose = ee_pose
-
-                            ee_tf = Transform()
-                            ee_tf.translation = ee_pose.position
-                            ee_tf.rotation = ee_pose.orientation
-
-                            transform.visualizeTransform(ee_tf, "goal_EE_pose")
-
-                            valid_handover, state_handover = moveit.getInverseKinematicsSolution(state_ready, ee_pose)
-                            #print("got state handover ", valid_handover)
-                            # call planToPose with ee_goal_msg
-
-                            i = 0
-                            while i < 20:
-                                ee_pertubated = pertubateEEPose(ee_pose, i, rate = 0.005)
-                                valid_handover, state_handover = moveit.getInverseKinematicsSolution(state_ready, ee_pertubated)
-                                #plan_found_handover, plan_handover = moveit.planToPose(ee_pertubated)
-                                print(i, ee_pertubated)
-
-                                if valid_handover:
-                                    i = 100
-                                i += 1
+                        ee_tf = Transform()
+                        ee_tf.translation = ee_pose.position
+                        ee_tf.rotation = ee_pose.orientation
+                        """
 
 
+                        #valid_handover = False
+                        #if count_grasp > 1:
 
-                            #print("Executing trajectory")
-                            if valid_handover:
-                                valid_waypoints = [1, 1, 1]
-                                print("Grasp number ", count_grasp, " valid waypoints ", valid_waypoints)
-                            #if plan_found_handover:
-                                pos = grasp.position.getVector()
-                                rot = grasp.orientation.getRotationMatrix()
+                        #transform.visualizeTransform(ee_tf, "goal_EE_pose")
 
-                                gripper_parts = createGripper(opening = 0.08, translation = pos, rotation = rot)
-                                vis_gripper = visualizeGripper(gripper_parts)
+                        #valid_handover, state_handover = moveit.getInverseKinematicsSolution(state_ready, ee_pose)
+                        #print(valid_handover)
 
-                                vis_grasps = visualizeGrasps6DOF(pcd, grasp_group)
-                                #o3d.visualization.draw_geometries([pcd, *vis_grasps, vis_gripper])
+                        #print("Executing trajectory")
+                        #if valid_handover:
+                        valid_waypoints = [1, 1, 1]
+                        print("Grasp number ", count_grasp, " valid waypoints ", valid_waypoints)
 
-                                print("Moving to waypoint...")
-                                result = rob9Utils.iiwa.execute_ptp(moveit.getJointPositionAtNamed("ready").joint_position.data)
-                                result = rob9Utils.iiwa.execute_ptp(state_waypoint.solution.joint_state.position[0:7])
-                                #rob9Utils.iiwa.execute_spline_trajectory(plan_waypoint)
+                        print("Moving to waypoint...")
+                        result = rob9Utils.iiwa.execute_ptp(moveit.getJointPositionAtNamed("ready").joint_position.data)
+                        #if object_count < 4:
+                        result = rob9Utils.iiwa.execute_ptp(state_waypoint.solution.joint_state.position[0:7])
+                        #rob9Utils.iiwa.execute_spline_trajectory(plan_waypoint)
 
-                                #moveit.execute(plan_waypoint)
-                                rospy.sleep(1)
+                        #moveit.execute(plan_waypoint)
+                        rospy.sleep(1)
 
-                                print("Moving to grasp pose...")
+                        print("Moving to grasp pose...")
 
-                                #rob9Utils.iiwa.execute_spline_trajectory(plan_grasp)
-                                #result = rob9Utils.iiwa.execute_ptp(plan_grasp)
-                                result = rob9Utils.iiwa.execute_ptp(state_grasp.solution.joint_state.position[0:7])
-                                #moveit.execute(plan_grasp)
-                                rospy.sleep(1)
+                        #rob9Utils.iiwa.execute_spline_trajectory(plan_grasp)
+                        #result = rob9Utils.iiwa.execute_ptp(plan_grasp)
+                        result = rob9Utils.iiwa.execute_ptp(state_grasp.solution.joint_state.position[0:7])
+                        #moveit.execute(plan_grasp)
+                        rospy.sleep(1)
 
-                                gripper_pub.publish(close_gripper_msg)
-                                rospy.sleep(1)
+                        gripper_pub.publish(close_gripper_msg)
+                        rospy.sleep(1)
 
-                                print("I have grasped!")
-                                print("Moving to ready...")
-                                #input("Press Enter when you are ready to move the robot back to the ready pose") # outcommented by Albert Wed 23 March 09:06
+                        print("I have grasped!")
+                        print("Moving to ready...")
+                        #input("Press Enter when you are ready to move the robot back to the ready pose") # outcommented by Albert Wed 23 March 09:06
 
-                                #result = rob9Utils.iiwa.execute_ptp(plan_waypoint)
-                                result = rob9Utils.iiwa.execute_ptp(state_waypoint.solution.joint_state.position[0:7])
-                                result = rob9Utils.iiwa.execute_ptp(moveit.getJointPositionAtNamed("ready").joint_position.data)
-                                #moveit.moveToNamed("ready")
+                        #if object_count < 4:
+                        result = rob9Utils.iiwa.execute_ptp(state_waypoint.solution.joint_state.position[0:7])
+                        result = rob9Utils.iiwa.execute_ptp(moveit.getJointPositionAtNamed("ready").joint_position.data)
+                        # Execute plan to handover pose
 
-                                # Execute plan to handover pose
-                                #result = rob9Utils.iiwa.execute_ptp(plan_handover)
-                                result = rob9Utils.iiwa.execute_ptp(state_handover.solution.joint_state.position[0:7])
-                                #moveit.execute(plan_handover)
-                                rospy.sleep(2)
-                                #input("Press Enter when you are ready to move the robot back to the ready pose")
+                        ##########################################################################################
+                        ########################## load ee pose in joints and execute ############################
+                        ##########################################################################################
 
-                                gripper_pub.publish(open_gripper_msg)
-                                rospy.sleep(2)
-                                result = rob9Utils.iiwa.execute_ptp(moveit.getJointPositionAtNamed("ready").joint_position.data)
-                                #moveit.moveToNamed("ready")
-                                result = rob9Utils.iiwa.execute_ptp(start_joint_pose_radians)
-                                state = 2
-                                break
-                            print("No plans for grasp num ", count_grasp)
+                        ee_pose_as_joint_positions = []
+                        ee_pose_as_joint_positions.append([-2.56E+00,	2.04E+00,	-1.87E+00,	1.61E+00,	5.82E-01,	-1.54E+00,	-3.03E-01])
+                        ee_pose_as_joint_positions.append([2.80E+00,	-1.16E+00,	1.03E+00,	-1.89E+00,	1.41E+00,	2.03E+00,	2.93E-01])
+                        ee_pose_as_joint_positions.append([6.18E-03,	4.08E-01,	1.64E+00,	1.52E+00,	-2.92E+00,	1.78E+00,	-1.89E-01])
+                        ee_pose_as_joint_positions.append([1.98E+00,	-6.18E-01,	2.71E+00,	-8.79E-01,	6.51E-01,	1.99E+00,	9.46E-01])
+                        ee_pose_as_joint_positions.append([2.65E+00,	-9.37E-01,	1.48E+00,	-1.09E+00,	1.15E+00,	2.06E+00,	-2.78E-01])
+
+
+                        result = rob9Utils.iiwa.execute_ptp(ee_pose_as_joint_positions[obj_inst])
+                        #result = rob9Utils.iiwa.execute_ptp(state_handover.solution.joint_state.position[0:7])
+                        #moveit.execute(plan_handover)
+                        rospy.sleep(4)
+                        #input("Press Enter when you are ready to move the robot back to the ready pose")
+
+                        gripper_pub.publish(open_gripper_msg)
+                        rospy.sleep(2)
+                        result = rob9Utils.iiwa.execute_ptp(moveit.getJointPositionAtNamed("ready").joint_position.data)
+                        result = rob9Utils.iiwa.execute_ptp(start_joint_pose_radians)
+                        state = 2
+                        print("No plans for grasp num ", count_grasp)
 
             state = 2
 

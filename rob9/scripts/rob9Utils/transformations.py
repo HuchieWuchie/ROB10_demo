@@ -74,8 +74,6 @@ def transformToFramePath(path, newFrame):
 
     response = tf2Service(path, String(newFrame))
 
-    print(response)
-
     return response
 
 def poseToTransform(pose):
@@ -142,7 +140,6 @@ def getTransform(source_frame, target_frame):
 
     response = tf2Service(source_msg, target_msg)
 
-    print(response)
     transl = np.zeros((3, 1))
     transl[0] = response.transform.translation.x
     transl[1] = response.transform.translation.y
