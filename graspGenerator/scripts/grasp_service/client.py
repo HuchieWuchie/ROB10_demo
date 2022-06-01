@@ -38,8 +38,10 @@ class GraspingGeneratorClient(object):
             grasps                  - rob9.GraspGroup()
         """
 
-        rospy.wait_for_service("/grasp_generator/result")
-        graspGeneratorService = rospy.ServiceProxy("/grasp_generator/result", runGraspingSrv)
+        print("Waiting for grasp service")
+        rospy.wait_for_service("/iiwa/grasp_generator/result")
+        print("Grasp service is up, generating grasps...")
+        graspGeneratorService = rospy.ServiceProxy("/iiwa/grasp_generator/result", runGraspingSrv)
 
         cam_client = CameraClient()
 
@@ -50,7 +52,7 @@ class GraspingGeneratorClient(object):
         response = graspGeneratorService(grasp_points_msg, pcd_msg, String(frame_id),
                                         Int32(tool_id), Int32(affordance_id),
                                         Int32(object_instance))
-                                        
+
         grasps = GraspGroup().fromGraspGroupMsg(response)
 
         return grasps
@@ -93,8 +95,8 @@ class GraspingGeneratorClient(object):
         self.depth_min = depth_min
         self.depth_max = depth_max
 
-        rospy.wait_for_service("/grasp_generator/set_settings")
-        graspGeneratorService = rospy.ServiceProxy("/grasp_generator/set_settings", setSettingsGraspingSrv)
+        rospy.wait_for_service("/iiwa/grasp_generator/set_settings")
+        graspGeneratorService = rospy.ServiceProxy("/iiwa/grasp_generator/set_settings", setSettingsGraspingSrv)
 
         response = graspGeneratorService(Float32(azimuth_step_size), Int32(azimuth_min), Float32(azimuth_max),
                                         Float32(polar_step_size), Int32(polar_min), Float32(polar_max),

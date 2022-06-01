@@ -240,16 +240,15 @@ if __name__ == '__main__':
             for label in labels:
                 print(aff_client.OBJ_CLASSES[label])
 
-            #cv2.imshow("masks", visualizeBBoxInRGB(visualizeMasksInRGB(img, masks), labels, bboxs, scores))
-            #cv2.waitKey(0)
-            #cv2.destroyAllWindows()
+            cv2.imshow("masks", visualizeBBoxInRGB(visualizeMasksInRGB(img, masks), labels, bboxs, scores))
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
 
             state = 4
 
 
         elif state == 4:
 
-            req_obj_id = 11
             while True:
                 rate.sleep()
                 if req_obj_id != -1:
@@ -317,9 +316,9 @@ if __name__ == '__main__':
                         m_vis[aff,:,:] = aff_mask
 
             obj_inst_masks = removeOverlapMask(masks = obj_inst_masks)
-            #cv2.imshow("masks", visualizeMasksInRGB(img, obj_inst_masks))
-            #cv2.waitKey(0)
-            #cv2.destroyAllWindows()
+            cv2.imshow("masks", visualizeMasksInRGB(img, obj_inst_masks))
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
 
             if args.save:
                 np.save(os.path.join(t_string, str(req_obj_id) + "_postmasks.npy"), obj_inst_masks)
@@ -404,7 +403,7 @@ if __name__ == '__main__':
                 transform.visualizeTransform(transform.poseToTransform(curr_pose_world), "object_current_pose")
                 rotated_coordinate_frame = visualizeFrameMesh(current_position, current_orientation)
 
-                #o3d.visualization.draw_geometries([pcd, rotated_coordinate_frame])
+                o3d.visualization.draw_geometries([pcd, rotated_coordinate_frame])
 
                 if args.save:
                     np.save(os.path.join(t_string, "current_pose_world.npy"), curr_pose_world)
