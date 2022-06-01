@@ -1,9 +1,9 @@
 # Generating appropriate object orientations for robot-to-human handovers using synthetic object affordances 10th semester project
-## Masther thesis 
-## 
-## By Albert Daugbjerg Christensen and Daniel Lehotský
-## Aalborg University (2022)
-## Electronics and IT
+#### Masther thesis 
+#### 
+#### By Albert Daugbjerg Christensen and Daniel Lehotský
+#### Aalborg University (2022)
+#### Electronics and IT
 
 ## Links to affiliated repositories
 
@@ -14,7 +14,7 @@ The deep neural network AffNet-DR for affordance segmentation can be found here:
 
 This repository contains our ROS node implementation master thesis "Generating appropriate object orientations for robot-to-human handovers using synthetic object affordances". The system is capable of performing task-oriented handovers, where an object is grasped by its functional affordance and handover with an appropriate orientaiton. Object affordances are detected using our deep neural network AffNet-DR, which was trained solely on synthetic data.
 
-video here
+![Demo video](demo_video.mp4)
 
 ## Requirements:
 
