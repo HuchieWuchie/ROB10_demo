@@ -76,6 +76,37 @@ Run the ROSSmartservo package on the KUKA controller, do this after launching ro
 Connect an ethernet cable between the ROS pc and the KUKA sunrise controller. Setup the network configuration on your ROS pc to the following:
 
 ```
-IP: 182.31.1.150
+IP: 172.31.1.150
 Netmask: 255.255.0.0
 ```
+
+Export ros settings 
+```
+export ROS_IP=172.31.1.150
+export ROS_MASTER_URI=http://172.31.1.147:11311
+```
+
+Modify permission for the laser scanner
+```
+sudo chmod a+rw /dev/ttyACM0      # note that the usb port might change
+```
+
+## Usage 
+
+launch roscore and launch file
+```
+source devel/setup.bash
+roscore
+roslaunch iiwa_noPtu_moveit moveit_planning_execution.launch
+```
+
+Launch whatever experiement you want, chose between the ones listed below.
+```
+rosrun rob10 final_test_observation.py
+rosrun rob10 final_test_rule.py
+rosrun rob10 orientation_test_observation.py # user study on orientation methods
+rosrun rob10 orientation_test_rule.py
+rosrun rob10 orientation_test_random.py
+```
+
+Note if you want to run the orientation_test_METHOD.py scripts you have to make use of precomputed information which can be found at: https://drive.google.com/file/d/1OhkOdDlKzmiacBYNIeN8ccKTg_f816GE/view?usp=sharing
