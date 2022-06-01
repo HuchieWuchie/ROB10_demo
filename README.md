@@ -22,6 +22,8 @@ This repository contains our ROS node implementation master thesis "Generating a
 
 https://user-images.githubusercontent.com/34643562/171363846-6cac8411-6d7b-4615-86e1-b2e0edf9657b.mp4
 
+A synthetic dataset already generated can be downloaded from here https://drive.google.com/file/d/1yRL2JbZhZEsL2O9fKbM_DDJ7U53dogkl/view?usp=sharing
+
 ## Requirements:
 
 General system requirements
