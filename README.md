@@ -12,9 +12,9 @@ Supervisor: Dimitris Chrysostomou
 
 ## Links to affiliated repositories
 
-The dataset generator implemented in the Unity game engine can be found here: https://github.com/HuchieWuchie/affordanceSynthetic  
-The deep neural network AffNet-DR for affordance segmentation can be found here: https://github.com/HuchieWuchie/affnetDRROS
-The analysis of the human-to-human handover dataset can be found here: https://github.com/daniellehot/handover_orientation_analysis
+The dataset generator implemented in the Unity game engine can be found here: https://github.com/HuchieWuchie/affordanceSynthetic \  
+The deep neural network AffNet-DR for affordance segmentation can be found here: https://github.com/HuchieWuchie/affnetDRROS \
+The analysis of the human-to-human handover dataset can be found here: https://github.com/daniellehot/handover_orientation_analysis \
 
 ## Description
 
