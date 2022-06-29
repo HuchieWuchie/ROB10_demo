@@ -28,6 +28,8 @@ General system requirements
 CUDA version 11.6
 NVIDIA GPU driver 510.60.02
 ROS melodic
+ros-melodic-moveit
+ros-melodic-urg-node
 ```
 
 C++:
@@ -48,6 +50,7 @@ torch (Pytorch) 1.10.2 cuda version
 torchvision 0.11.2 cuda
 scikit_image 0.17.2
 PIL 8.4.0
+rospkg 1.4.0
 ```
 
 The system ran on a Lenovo Thinkpad P53 laptop with a Quadro RTX 4000 GPU with 8 GB VRAM and an Intel Core i9-9880H CPU 2.3 GHZ and 32 GB RAM.
