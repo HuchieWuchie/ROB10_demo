@@ -97,7 +97,7 @@ class OrientationServer(object):
 
         self.method = msg.method.data
 
-        print("Changed handover observatoin computation method to: ", int_to_method[self.method])
+        print("Changed handover observation computation method to: ", int_to_method[self.method])
         return setSettingsOrientationSrvResponse()
 
     def createSourceWGrasp(self):
@@ -366,9 +366,6 @@ class OrientationServer(object):
                         score = 9999
                         T = np.eye(4)
 
-
-                    print(best_score)
-
                     if score < best_score:
                         pcd_single_view.transform(T)
                         transformation[:3, :3] = rot_mat
@@ -542,8 +539,6 @@ class OrientationServer(object):
         neigh= NearestNeighbors(n_neighbors=1)
         neigh.fit(observation)
         distances, _ = neigh.kneighbors(rotated_source, return_distance = True)
-        #print(rotated_source)
-        #print(rotated_source.shape)
         #INSERT NEAREST NEIGHBOUR
         #distances = get_distances(observation, rotated_source)
         return np.sum(distances)
@@ -699,9 +694,6 @@ class OrientationServer(object):
                         score = 9999
                         T = np.eye(4)
 
-
-                    print(count, " / ", x_range*y_range*z_range, " best score so far: ", best_score)
-
                     if score < best_score:
                         pcd_single_view.transform(T)
                         transformation[:3, :3] = rot_mat
@@ -714,7 +706,6 @@ class OrientationServer(object):
                         o3d.visualization.draw_geometries([pcd_affordance, pcd_single_view])
 
                     if best_score < 0.02:
-                        print("Best score below threshold")
                         x = x_range
                         y = y_range
                         z = z_range
@@ -749,9 +740,6 @@ class OrientationServer(object):
             T, G = self.methodRule(pcd_affordance)
 
         np.set_printoptions(suppress=True)
-        print(T)
-        print()
-        print(G)
 
         msg = runOrientationSrvResponse()
         rotClient = OrientationClient()

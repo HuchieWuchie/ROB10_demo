@@ -105,7 +105,6 @@ def execute(plan):
     msg = plan
 
     success = tf2Service(msg)
-    print(success)
 
     return success
 

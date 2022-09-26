@@ -14,6 +14,7 @@ from scipy.spatial.transform import Rotation as R
 from pathlib import Path
 import os
 import argparse
+import imageio
 
 #import actionlib
 
@@ -47,6 +48,32 @@ from rob9.srv import graspGroupSrv, graspGroupSrvResponse
 
 import time
 
+def imgSubscriber(img_msg):
+    global out_video
+    #img_cam = br.imgmsg_to_cv2(msg, "bgr8")
+
+    dtype, n_channels = np.uint8, 3
+    dtype = np.dtype(dtype)
+    dtype = dtype.newbyteorder('>' if img_msg.is_bigendian else '<')
+
+    img_buf = np.asarray(img_msg.data, dtype=dtype) if isinstance(img_msg.data, list) else img_msg.data
+
+    if n_channels == 1:
+        im = np.ndarray(shape=(img_msg.height, int(img_msg.step/dtype.itemsize)),
+                        dtype=dtype, buffer=img_buf)
+        im = np.ascontiguousarray(im[:img_msg.height, :img_msg.width])
+    else:
+        im = np.ndarray(shape=(img_msg.height, int(img_msg.step/dtype.itemsize/n_channels), n_channels),
+                        dtype=dtype, buffer=img_buf)
+        im = np.ascontiguousarray(im[:img_msg.height, :img_msg.width, :])
+
+    # If the byte order is different between the message and the system.
+    if img_msg.is_bigendian == (sys.byteorder == 'little'):
+        im = im.byteswap().newbyteorder()
+
+    img_cam = im
+
+    out_video.append_data(img_cam[:, :, ::-1])
 
 def signal_handler(signal, frame):
     print("Shutting down program.")
@@ -104,7 +131,7 @@ def parse_args():
 
 
 if __name__ == '__main__':
-    global grasps_affordance, img, pcd, masks, bboxs, req_aff_id, req_obj_id, state
+    global grasps_affordance, img, pcd, masks, bboxs, req_aff_id, req_obj_id, state, out_video, br
 
     args = parse_args()
 
@@ -139,14 +166,34 @@ if __name__ == '__main__':
     pub_pose = rospy.Publisher('/outputs/img/object_pose', Image,queue_size=1)
     pub_img_grasp = rospy.Publisher('/outputs/img/grasp', Image,queue_size=1)
 
+    t_string = str(time.time()*1000)
+    if args.save:
+        if not os.path.exists(t_string):
+            os.makedirs(t_string)
+
+        out_video = imageio.get_writer(t_string + "/rgb_video.mp4", fps = 10)
+        sub_img_cam = rospy.Subscriber('/sensors/realsense/rgb', Image, imgSubscriber)
+
+    obj_labels = [14, 6, 16]
+    cam_locations = ["camera_ready_3", "camera_ready_4", "camera_ready_4"]
+
+    counter = 0
     while True:
+
+        obj_lab = obj_labels[counter]
+        cam_loc = cam_locations[counter]
+        print(obj_lab, cam_loc)
 
         if state == 1:
 
-            t_string = str(time.time()*1000)
-            if args.save:
-                if not os.path.exists(t_string):
-                    os.makedirs(t_string)
+            img_msg = br.cv2_to_imgmsg(np.zeros((720, 1280, 3), np.uint8))
+            pub_aff.publish(img_msg)
+            pub_tool.publish(img_msg)
+            pub_pose.publish(img_msg)
+            pub_img_grasp.publish(img_msg)
+
+
+
             # setup phase
 
             if args.move:
@@ -207,6 +254,12 @@ if __name__ == '__main__':
 
         elif state == 2:
 
+            img_msg = br.cv2_to_imgmsg(np.zeros((720, 1280, 3), np.uint8))
+            pub_aff.publish(img_msg)
+            pub_tool.publish(img_msg)
+            pub_pose.publish(img_msg)
+            pub_img_grasp.publish(img_msg)
+
             # Start AffNet-DR
             print("Segmenting affordance maps")
             aff_client = AffordanceClient()
@@ -219,10 +272,18 @@ if __name__ == '__main__':
 
             print("State 3")
 
+
+
             if args.move:
-                result = rob9Utils.iiwa.execute_ptp(moveit.getJointPositionAtNamed("camera_ready_4").joint_position.data)
+                result = rob9Utils.iiwa.execute_ptp(moveit.getJointPositionAtNamed(cam_loc).joint_position.data)
             req_obj_id = -1
 			# Capture sensor information
+
+            img_msg = br.cv2_to_imgmsg(np.zeros((720, 1280, 3), np.uint8))
+            pub_aff.publish(img_msg)
+            pub_tool.publish(img_msg)
+            pub_pose.publish(img_msg)
+            pub_img_grasp.publish(img_msg)
 
             print("Camera is capturing new scene")
             cam = CameraClient()
@@ -236,24 +297,24 @@ if __name__ == '__main__':
             img = cam.getRGB()
 
             if args.save:
-                o3d.io.write_point_cloud(os.path.join(t_string, "pcd.ply"), pcd)
-                np.save(os.path.join(t_string, "uv.npy"), cloud_uv)
-                cv2.imwrite(os.path.join(t_string, "img.png"), img)
+                o3d.io.write_point_cloud(os.path.join(t_string, str(counter) + "pcd.ply"), pcd)
+                np.save(os.path.join(t_string, str(counter) +  "uv.npy"), cloud_uv)
+                cv2.imwrite(os.path.join(t_string, str(counter) +  "img.png"), img)
 
             state = 4
 
         elif state == 4:
             # Analyze affordance
 
-            _ = aff_client.run(img, CONF_THRESHOLD = 0.5)
+            _ = aff_client.run(img, CONF_THRESHOLD = 0.7)
 
             masks, labels, scores, bboxs = aff_client.getAffordanceResult()
 
             if args.save:
-                np.save(os.path.join(t_string, "masks.npy"), masks)
-                np.save(os.path.join(t_string, "labels.npy"), labels)
-                np.save(os.path.join(t_string, "scores.npy"), scores)
-                np.save(os.path.join(t_string, "bboxs.npy"), bboxs)
+                np.save(os.path.join(t_string, str(counter) +  "masks.npy"), masks)
+                np.save(os.path.join(t_string, str(counter) +  "labels.npy"), labels)
+                np.save(os.path.join(t_string, str(counter) +  "scores.npy"), scores)
+                np.save(os.path.join(t_string, str(counter) +  "bboxs.npy"), bboxs)
 
             print("Found the following objects, waiting for command: ")
             for (label, score) in zip(labels, scores):
@@ -270,17 +331,14 @@ if __name__ == '__main__':
                 cv2.destroyAllWindows()
 
             if args.save:
-                cv2.imwrite(os.path.join(t_string, "img_vis_raw.png"), img_vis)
+                cv2.imwrite(os.path.join(t_string, str(counter) +  "img_vis_raw.png"), img_vis)
 
             state = 5
 
 
         elif state == 5:
 
-            while True:
-                rate.sleep()
-                if req_obj_id != -1:
-                    break
+            req_obj_id = obj_lab
             state = 6
 
         elif state == 6:
@@ -304,9 +362,9 @@ if __name__ == '__main__':
             obj_inst_bbox = bboxs[obj_inst]
 
             if args.save:
-                np.save(os.path.join(t_string, str(req_obj_id) + "_premasks.npy"), obj_inst_masks)
-                np.save(os.path.join(t_string, str(req_obj_id) + "_label.npy"), obj_inst_label)
-                np.save(os.path.join(t_string, str(req_obj_id) + "_bboxs.npy"), obj_inst_bbox)
+                np.save(os.path.join(t_string, str(counter) +  str(req_obj_id) + "_premasks.npy"), obj_inst_masks)
+                np.save(os.path.join(t_string, str(counter) +  str(req_obj_id) + "_label.npy"), obj_inst_label)
+                np.save(os.path.join(t_string, str(counter) +  str(req_obj_id) + "_bboxs.npy"), obj_inst_bbox)
 
             # Post process affordance predictions and compute point cloud affordance mask
 
@@ -354,8 +412,8 @@ if __name__ == '__main__':
                 cv2.destroyAllWindows()
 
             if args.save:
-                np.save(os.path.join(t_string, str(req_obj_id) + "_postmasks.npy"), obj_inst_masks)
-                cv2.imwrite(os.path.join(t_string, "img_vis.png"), img_vis)
+                np.save(os.path.join(t_string, str(counter) +  str(req_obj_id) + "_postmasks.npy"), obj_inst_masks)
+                cv2.imwrite(os.path.join(t_string, str(counter) +  "img_vis.png"), img_vis)
 
             affordances_in_object = getPredictedAffordances(masks = obj_inst_masks, bbox = obj_inst_bbox)
 
@@ -396,8 +454,8 @@ if __name__ == '__main__':
                         sampled_grasp_points = np.vstack((sampled_grasp_points, local_sampled_grasp_points))
 
             if args.save:
-                o3d.io.write_point_cloud(os.path.join(t_string, "pcd_world.ply"), pcd)
-                o3d.io.write_point_cloud(os.path.join(t_string, "pcd_affordance.ply"), pcd_affordance)
+                o3d.io.write_point_cloud(os.path.join(t_string, str(counter) +  "pcd_world.ply"), pcd)
+                o3d.io.write_point_cloud(os.path.join(t_string, str(counter) +  "pcd_affordance.ply"), pcd_affordance)
 
             if True in success:
 
@@ -428,8 +486,8 @@ if __name__ == '__main__':
                     cv2.destroyAllWindows()
 
                 if args.save:
-                    np.save(os.path.join(t_string, "object_pose_world.npy"), object_pose_world)
-                    cv2.imwrite(os.path.join(t_string, "img_obj_pose.png"), img_obj_pose)
+                    np.save(os.path.join(t_string, str(counter) +  "object_pose_world.npy"), object_pose_world)
+                    cv2.imwrite(os.path.join(t_string, str(counter) +  "img_obj_pose.png"), img_obj_pose)
 
                 loc_client = LocationClient()
                 goal_location_giver_original = loc_client.getLocation().flatten() # in givers frame
@@ -558,12 +616,9 @@ if __name__ == '__main__':
                                             cv2.waitKey(0)
                                             cv2.destroyAllWindows()
 
-                                            if args.save:
-                                                cv2.imwrite(os.path.join(t_string, "img_vis_grasp.png"), img_vis_grasp)
-
-
                                         if args.save:
-                                            np.save(os.path.join(t_string, "grasp.npy"), grasp.toPoseArray())
+                                            cv2.imwrite(os.path.join(t_string, str(counter) +  "img_vis_grasp.png"), img_vis_grasp)
+                                            np.save(os.path.join(t_string, str(counter) +  "grasp.npy"), grasp.toPoseArray())
 
                                         transform.visualizeTransform(ee_tf, "goal_EE_pose")
 
@@ -605,12 +660,7 @@ if __name__ == '__main__':
                     count_grasp += 1
 
             state = 3
-
-        elif state == 10:
-            # restart
-            req_obj_id = -1
-
-            state = 1
+            counter += 1
 
     try:
         rospy.spin()

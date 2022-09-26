@@ -21,65 +21,31 @@ if __name__ == "__main__":
 
     print("Starting")
     cam = CameraClient(type = "realsenseD435")
-    counter = 0
     rospy.init_node("realsense_client_usage_example", anonymous=True)
 
-    set_ee = True
-    if not rob9Utils.iiwa.setEndpointFrame():
-        set_ee = False
-    print("STATUS end point frame was changed: ", set_ee)
+    print("Capturing new scene...")
 
-    set_PTP_speed_limit = True
-    if not rob9Utils.iiwa.setPTPJointSpeedLimits(0.1, 0.1):
-        set_PTP_speed_limit = False
-    print("STATUS PTP joint speed limits was changed: ", set_PTP_speed_limit)
+    cam.captureNewScene()
 
-    set_PTP_cart_speed_limit = True
-    if not rob9Utils.iiwa.setPTPCartesianSpeedLimits(0.1, 0.1, 0.1, 0.1, 0.1, 0.1):
-        set_PTP_cart_speed_limit = False
-    print("STATUS PTP cartesian speed limits was changed: ", set_PTP_cart_speed_limit)
+    cam.getRGB()
+    cv2.imshow("rgb image", cam.rgb)
+    cv2.waitKey(0)
 
+    # SOMETHING WRONG in cam.getDepth() -> ... dtype=np.float16 ...
+    #cam.getDepth()
+    #print(cam.depth)
+    #print(np.unique(cam.depth))
+    #cv2.imshow("depth image", (cam.depth*255).astype(np.uint8))
+    #cv2.waitKey(0)
 
-    rob9Utils.iiwa.execute_ptp(moveit.getJointPositionAtNamed("ready").joint_position.data)
+    cam.getUvStatic()
+    print(cam.uv.shape)
+    print(cam.uv[0:10000])
+    print("uv[0] max: ", np.max(cam.uv[:,0]))
+    print("uv[1] max: ", np.max(cam.uv[:,1]))
 
-    while(counter<1000):
-        print("Capture new scene " + str(counter))
-        counter += 1;
-
-        if (counter % 2 == 0):
-            rob9Utils.iiwa.execute_ptp(moveit.getJointPositionAtNamed("ready").joint_position.data)
-        else:
-            result = rob9Utils.iiwa.execute_ptp(moveit.getJointPositionAtNamed("camera_ready_1").joint_position.data)
-
-
-        cam.captureNewScene()
-
-        cam.getRGB()
-        #cv2.imshow("rgb image", cam.rgb)
-        #cv2.waitKey(0)
-
-        # SOMETHING WRONG in cam.getDepth() -> ... dtype=np.float16 ...
-        cam.getDepth()
-        #print(cam.depth)
-        #print(np.unique(cam.depth))
-        #cv2.imshow("depth image", (cam.depth*255).astype(np.uint8))
-        #cv2.waitKey(0)
-
-        cam.getUvStatic()
-        #print(cam.uv.shape)
-        #print(cam.uv[0:10000])
-
-        cloud, rgb = cam.getPointCloudStatic()
-        #pcd = o3d.geometry.PointCloud()
-        #pcd.points = o3d.utility.Vector3dVector(cloud)
-        #pcd.colors = o3d.utility.Vector3dVector(rgb)
-        #o3d.visualization.draw_geometries([pcd])
-
-
-        sleep = np.random.randint(180, 300)
-        time_now = rospy.Time.now()
-        dt = datetime.datetime.utcfromtimestamp(time_now.to_sec())
-        print("Time now ", dt)
-        print("Sleeping for ", sleep)
-        print("===========================")
-        rospy.sleep(sleep)
+    cloud, rgb = cam.getPointCloudStatic()
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = o3d.utility.Vector3dVector(cloud)
+    pcd.colors = o3d.utility.Vector3dVector(rgb)
+    o3d.visualization.draw_geometries([pcd])

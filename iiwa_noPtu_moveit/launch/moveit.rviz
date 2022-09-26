@@ -1,6 +1,6 @@
 Panels:
   - Class: rviz/Displays
-    Help Height: 85
+    Help Height: 70
     Name: Displays
     Property Tree Widget:
       Expanded:
@@ -8,8 +8,10 @@ Panels:
         - /MotionPlanning1/Planning Request1
         - /TF1
         - /TF1/Frames1
+        - /PointStamped1
+        - /PointStamped2
       Splitter Ratio: 0.7425600290298462
-    Tree Height: 288
+    Tree Height: 804
   - Class: rviz/Help
     Name: Help
   - Class: rviz/Views
@@ -17,6 +19,13 @@ Panels:
       - /Current View1
     Name: Views
     Splitter Ratio: 0.5
+  - Class: rviz/Displays
+    Help Height: 70
+    Name: Displays
+    Property Tree Widget:
+      Expanded: ~
+      Splitter Ratio: 0.5
+    Tree Height: 371
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -554,14 +563,6 @@ Visualization Manager:
           Value: false
         finger_middle_link_3:
           Value: false
-        giver:
-          Value: true
-        goal_EE_pose:
-          Value: true
-        goal_to_reach:
-          Value: true
-        grasp_to_reach:
-          Value: true
         gripper_connector_box:
           Value: false
         iiwa_link_0:
@@ -583,10 +584,6 @@ Visualization Manager:
         iiwa_link_ee:
           Value: false
         laser:
-          Value: true
-        object_current_pose:
-          Value: true
-        object_goal_pose:
           Value: true
         palm:
           Value: false
@@ -611,7 +608,7 @@ Visualization Manager:
         ptu_camera_right_ir_optical_frame:
           Value: false
         right_ee_link:
-          Value: true
+          Value: false
         robotPlate:
           Value: false
         s_connector_cylinder:
@@ -620,12 +617,8 @@ Visualization Manager:
           Value: false
         table:
           Value: false
-        waypoint_to_reach:
-          Value: true
         world:
           Value: false
-        world_to_camera:
-          Value: true
       Marker Scale: 1
       Name: TF
       Show Arrows: true
@@ -633,23 +626,11 @@ Visualization Manager:
       Show Names: true
       Tree:
         world:
-          goal_EE_pose:
-            {}
-          goal_to_reach:
-            {}
-          grasp_to_reach:
-            {}
-          object_current_pose:
-            {}
-          object_goal_pose:
-            {}
           table:
             laser:
               {}
             robotPlate:
               iiwa_link_0:
-                giver:
-                  {}
                 iiwa_link_1:
                   iiwa_link_2:
                     iiwa_link_3:
@@ -697,12 +678,18 @@ Visualization Manager:
                                               {}
                                       right_ee_link:
                                         {}
-          waypoint_to_reach:
-            {}
-          world_to_camera:
-            {}
       Update Interval: 0
       Value: true
+    - Alpha: 1
+      Class: rviz/PointStamped
+      Color: 204; 41; 204
+      Enabled: false
+      History Length: 1
+      Name: PointStamped
+      Radius: 0.20000000298023224
+      Topic: /receiver
+      Unreliable: false
+      Value: false
     - Alpha: 1
       Class: rviz/PointStamped
       Color: 204; 41; 204
@@ -710,7 +697,67 @@ Visualization Manager:
       History Length: 1
       Name: PointStamped
       Radius: 0.20000000298023224
-      Topic: /receiver
+      Topic: /iiwa/receiver
+      Unreliable: false
+      Value: true
+    - Class: rviz/Image
+      Enabled: true
+      Image Topic: /outputs/img/affordance_prediction
+      Max Value: 1
+      Median window: 5
+      Min Value: 0
+      Name: Affordance_prediction
+      Normalize Range: true
+      Queue Size: 1
+      Transport Hint: raw
+      Unreliable: false
+      Value: true
+    - Class: rviz/Image
+      Enabled: true
+      Image Topic: /sensors/realsense/rgb
+      Max Value: 1
+      Median window: 5
+      Min Value: 0
+      Name: RGB Image
+      Normalize Range: true
+      Queue Size: 1
+      Transport Hint: raw
+      Unreliable: false
+      Value: true
+    - Class: rviz/Image
+      Enabled: true
+      Image Topic: /outputs/img/object_to_pick
+      Max Value: 1
+      Median window: 5
+      Min Value: 0
+      Name: Object
+      Normalize Range: true
+      Queue Size: 1
+      Transport Hint: raw
+      Unreliable: false
+      Value: true
+    - Class: rviz/Image
+      Enabled: true
+      Image Topic: /outputs/img/object_pose
+      Max Value: 1
+      Median window: 5
+      Min Value: 0
+      Name: Object_pose
+      Normalize Range: true
+      Queue Size: 2
+      Transport Hint: raw
+      Unreliable: false
+      Value: true
+    - Class: rviz/Image
+      Enabled: true
+      Image Topic: /outputs/img/grasp
+      Max Value: 1
+      Median window: 5
+      Min Value: 0
+      Name: Grasp
+      Normalize Range: true
+      Queue Size: 2
+      Transport Hint: raw
       Unreliable: false
       Value: true
   Enabled: true
@@ -729,39 +776,49 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 3.720132350921631
+      Distance: 3.0772886276245117
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0.11356700211763382
-        Y: 0.10592000186443329
-        Z: 2.2351800055275817e-7
+        X: -0.07593762874603271
+        Y: -0.5690559148788452
+        Z: -2.518295787012903e-6
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.1547970026731491
+      Pitch: 0.6047960519790649
       Target Frame: world
       Value: XYOrbit (rviz)
-      Yaw: 4.56496524810791
+      Yaw: 4.2399749755859375
     Saved: ~
 Window Geometry:
+  Affordance_prediction:
+    collapsed: false
   Displays:
+    collapsed: false
+  Grasp:
     collapsed: false
   Height: 1025
   Help:
     collapsed: false
-  Hide Left Dock: false
+  Hide Left Dock: true
   Hide Right Dock: false
   MotionPlanning:
     collapsed: false
   MotionPlanning - Trajectory Slider:
     collapsed: false
-  QMainWindow State: 000000ff00000000fd0000000100000000000002a2000003a7fc0200000007fb000000100044006900730070006c006100790073010000003d000001b2000000c900fffffffb0000000800480065006c00700000000342000000bb0000006e00fffffffb0000000a0056006900650077007300000003b0000000b0000000a400fffffffb0000000c00430061006d00650072006100000002ff000001610000000000000000fb0000001e004d006f00740069006f006e00200050006c0061006e006e0069006e00670100000374000001890000000000000000fb00000044004d006f00740069006f006e0050006c0061006e006e0069006e00670020002d0020005400720061006a006500630074006f0072007900200053006c00690064006500720000000000ffffffff0000001600000016fb0000001c004d006f00740069006f006e0050006c0061006e006e0069006e006701000001f5000001ef0000017d00ffffff00000495000003a700000001000000020000000100000002fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  Object:
+    collapsed: false
+  Object_pose:
+    collapsed: false
+  QMainWindow State: 000000ff00000000fd0000000200000000000001f3000003a7fc0200000007fb0000001c004d006f00740069006f006e0050006c0061006e006e0069006e0067000000003d000001eb0000017d00fffffffb000000100044006900730070006c006100790073000000003d000003a7000000c900fffffffb0000000800480065006c00700000000342000000bb0000006e00fffffffb0000000a0056006900650077007300000003b0000000b0000000a400fffffffb0000000c00430061006d00650072006100000002ff000001610000000000000000fb0000001e004d006f00740069006f006e00200050006c0061006e006e0069006e00670100000374000001890000000000000000fb00000044004d006f00740069006f006e0050006c0061006e006e0069006e00670020002d0020005400720061006a006500630074006f0072007900200053006c00690064006500720000000000ffffffff0000001600000016000000030000073d0000017bfc010000000bfb0000001200520047004200200049006d00610067006501000000000000015f0000007f00fffffffb0000002a004100660066006f007200640061006e00630065005f00700072006500640069006300740069006f006e010000016500000173000000ce00fffffffb0000000c004f0062006a00650063007401000002de000001730000006200fffffffb00000016004f0062006a006500630074005f0070006f007300650100000457000001720000008a00fffffffb0000000a0047007200610073007001000005cf0000016e0000005c00fffffffb0000000a0049006d00610067006501000000000000015d0000000000000000fb0000000a0049006d0061006700650100000163000001830000000000000000fb0000000a0049006d00610067006501000002ec0000016a0000000000000000fb0000000a0049006d006100670065010000045c0000016e0000000000000000fb0000000a0049006d00610067006501000005d00000016d0000000000000000fb000000100044006900730070006c00610079007300000002a8000004950000015600ffffff0000073d0000022600000001000000020000000100000002fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  RGB Image:
+    collapsed: false
   Views:
     collapsed: false
   Width: 1853

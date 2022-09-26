@@ -48,9 +48,10 @@
         <node name="urg_node" pkg="urg_node" type="urg_node" output="screen" required="true"/>
         <node name="location_service" pkg="location_service" type="scan_processing_server" output="screen" required="true"/>
         <node name="orientation_service" pkg="orientation_service" type="server.py" output="screen" required="true"/>
+        <!--<node name="realsense_service" pkg="realsense_service" type="server.py" output="screen" required="true"/>-->
         <node name="realsense_service" pkg="realsense_service" type="realsense_service_node" output="screen" required="true"/>
         <node name="grasp_generator_node" pkg="grasp_generator" type="server.py" output="screen" required="true"/>
-        <node name="affordance_analyzer_node" pkg="affordance_analyzer" type="server_synth.py" output="screen" required="true"/>
+        <!--<node name="affordance_analyzer_node" pkg="affordance_analyzer" type="server_synth.py" output="screen" required="true"/> /-->
         <node name="moveit_service" pkg="rob9" type="moveit_service.py" output="screen" required="true"/>
 
         <!--<node name="trajectory_service" pkg="moveit_scripts" type="trajectory_server_ik_iiwa.py" output="screen" required="true"/> /-->

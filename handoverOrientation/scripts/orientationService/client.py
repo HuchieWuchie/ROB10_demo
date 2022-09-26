@@ -18,7 +18,6 @@ class OrientationClient(object):
 
         print("Waiting for orientation service...")
         rospy.wait_for_service("/computation/handover_orientation/get")
-        print("Orientation service is up...")
         orientationService = rospy.ServiceProxy("/computation/handover_orientation/get", runOrientationSrv)
         print("Connection to orientation service established!")
 
@@ -32,9 +31,6 @@ class OrientationClient(object):
             pcd_colors = pcd_colors * 255
 
         pcd_geometry_msg, pcd_color_msg = camClient.packPCD(pcd_points, pcd_colors)
-
-        print("Message constructed")
-
         response = orientationService(pcd_geometry_msg, pcd_color_msg)
 
         current_orientation, current_translation, goal_orientation = self.unpackOrientation(response.current, response.goal)

@@ -172,8 +172,6 @@ def getAffordanceBoundingBoxes(pcd):
     points = []
     colors = []
 
-    #print(np.unique(pcd_colors, axis = 0))
-
     for color in label_colors:
         idx = pcd_colors == color
         idx = np.sum(idx, axis = -1) == 3
@@ -182,8 +180,6 @@ def getAffordanceBoundingBoxes(pcd):
             aff_points = o3d.utility.Vector3dVector(pcd_points[idx])
             bbox = np.asanyarray(o3d.geometry.OrientedBoundingBox.create_from_points(aff_points).get_box_points())
             bbox_colors = [color for i in range(bbox.shape[0])]
-
-            #print(bbox)
 
             if len(points) == 0:
                 points = bbox

@@ -53,7 +53,7 @@ CATKIN_IGNORE
 *.pyc
 **/__pycache__
 __pycache__/
-affordanceAnalyzer/scripts/affordancenet_synthetic/weights.pth
+affordanceAnalyzer/scripts/affordancenet/weights.pth
 
 rob10/scripts/experiments/orientation_test_observation/*.ply
 rob10/scripts/experiments/orientation_test_observation/*.npy

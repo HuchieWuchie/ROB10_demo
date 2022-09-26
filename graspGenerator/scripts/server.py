@@ -232,8 +232,7 @@ class GraspServer(object):
                 translation[2] = s_grasp[2] - depth_values[int(d_count / 2)]
                 #score = 1 - distance.euclidean(np.linalg.norm(translation), np.linalg.norm(centroid))
                 #translation[2] = s_grasp[2] - depth_values[min(0, d_count-1)]
-
-                print(score)
+                
                 #vis_gripper = visualizeGripper(gripper)
                 #gripper_frame = visualizeFrameMesh(translation, eeRotMat)
                 #o3d.visualization.draw_geometries([pcd_downsample, vis_gripper, gripper_frame])

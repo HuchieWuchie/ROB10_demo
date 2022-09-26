@@ -59,7 +59,7 @@
   <joint name="table_scanner_joint" type="fixed">
     <parent link="table"/>
     <child link="laser"/>
-    <origin xyz="0.43 -0.02 0.475" rpy="0 0 0"/>
+    <origin xyz="0.2 -0.02 0.475" rpy="0 0 0"/>
   </joint>
 
   <!-- ROBOT PLATE -->

@@ -12,6 +12,7 @@ from rob9Utils.utils import erodeMask, keepLargestContour, convexHullFromContour
 
 import open3d as o3d
 import copy
+import time
 
 if __name__ == "__main__":
     print("Usage example of client server service")
@@ -33,16 +34,11 @@ if __name__ == "__main__":
     affClient.start(GPU=True) # GPU acceleratio True or False
     print(affClient.name)
     print("Telling affordanceNET to analyze image from realsense and return predictions.")
+
+    ts = time.time()
     success = affClient.run(img, CONF_THRESHOLD = 0.7)
     masks, labels, scores, bboxs = affClient.getAffordanceResult()
-    print("Got result")
-
-    print(scores)
-
-    masks = affClient.processMasks(masks, conf_threshold = 0, erode_kernel=(1,1))
-    print("Here", masks.shape)
-
-    # Post process affordance predictions and compute point cloud affordance mask
+    print("Got result in: ", time.time() - ts, " seconds.")
 
     for i in range(masks.shape[0]):
 
@@ -58,6 +54,8 @@ if __name__ == "__main__":
             #                kernel = np.ones((3,3)))
             contours = getAffordanceContours(bbox = obj_inst_bbox, affordance_id = aff,
                                             masks = obj_inst_masks)
+
+
 
 
             if len(contours) > 0:
@@ -82,10 +80,10 @@ if __name__ == "__main__":
                     m_vis[aff,:,:] = aff_mask
 
             #obj_inst_masks = removeOverlapMask(masks = obj_inst_masks)
-        print(masks[i].shape, obj_inst_masks.shape)
         masks[i] = obj_inst_masks
 
     img_vis = visualizeBBoxInRGB(visualizeMasksInRGB(img, obj_inst_masks), labels, bboxs, scores)
+    img_vis = visualizeMasksInRGB(img, masks)
     cv2.imwrite("aff_detection.png", img_vis)
     cv2.imwrite("aff_input.png", img)
     cv2.imshow("masks", img_vis)
@@ -109,4 +107,4 @@ if __name__ == "__main__":
 
     print("Found the following objects")
     for i in range(len(affClient.objects)):
-        print(affClient.OBJ_CLASSES[affClient.objects[i]])
+        print(affClient.OBJ_CLASSES[affClient.objects[i]], " - score: ", affClient.scores[i], " - label: ", affClient.objects[i])
